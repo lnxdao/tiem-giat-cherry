@@ -459,7 +459,7 @@ function switchTab(tab,btn){
 
 /* ══ LOAD ══ */
 async function loadOrders(){
-  const{data}=await db.from('orders').select('*,order_items(*)').order('created_at',{ascending:false});
+  const{data}=await db.from('orders').select('*,order_items(*)').order('id',{ascending:false});
   orders=data||[];renderList();updateTopStats();
 }
 async function loadCatalog(){
