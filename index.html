@@ -220,7 +220,6 @@ hr.div{border:none;border-top:1px solid #f0f0f0;margin:11px 0}
   <div class="tabs no-print">
     <button class="tab-btn active" onclick="switchTab('list',this)">Đơn hàng</button>
     <button class="tab-btn" onclick="switchTab('new',this)">➕ Tạo đơn</button>
-    <button class="tab-btn" onclick="switchTab('customers',this)">Khách hàng</button>
     <button class="tab-btn" onclick="switchTab('stats',this)">Thống kê</button>
     <button class="tab-btn" onclick="switchTab('catalog',this)">⚙️ Bảng giá</button>
     <button class="tab-btn" onclick="switchTab('audit',this)">📋 Lịch sử</button>
@@ -272,15 +271,6 @@ hr.div{border:none;border-top:1px solid #f0f0f0;margin:11px 0}
         <div class="fgrp" style="margin-bottom:10px"><label>Ghi chú</label><textarea id="f-note" rows="2" placeholder="Yêu cầu đặc biệt..."></textarea></div>
         <button class="btn-submit" onclick="submitOrder()">✨ Tạo đơn</button>
       </div>
-    </div>
-
-    <!-- KHÁCH HÀNG -->
-    <div class="tab-pane" id="tab-customers">
-      <div class="search-wrap" style="margin-bottom:12px">
-        <span class="search-ico">🔍</span>
-        <input type="text" id="cust-search" placeholder="Tìm khách hàng..." oninput="renderCustomers()">
-      </div>
-      <div id="cust-list"><div class="empty"><span class="spin"></span>Đang tải...</div></div>
     </div>
 
     <!-- THỐNG KÊ -->
@@ -359,17 +349,22 @@ hr.div{border:none;border-top:1px solid #f0f0f0;margin:11px 0}
       <div id="modal-order-info" style="font-size:13px;color:#374151"></div>
       <div class="total" id="modal-total"></div>
     </div>
-    <div class="fg"><label>Ngày giờ khách nhận</label>
-      <input type="datetime-local" id="modal-deliver-dt">
-    </div>
-    <div class="fg" style="margin-top:10px"><label>Phương thức thanh toán</label>
-      <div class="pay-toggle">
+    <div class="fg">
+      <label>Hình thức thanh toán *</label>
+      <div class="pay-toggle" style="margin-top:4px">
         <button class="pay-opt active-cash" id="modal-pay-cash" onclick="setModalPay('cash')">💵 Tiền mặt</button>
         <button class="pay-opt" id="modal-pay-xk" onclick="setModalPay('transfer')">📲 Chuyển khoản</button>
       </div>
     </div>
-    <div class="fg" style="margin-top:10px"><label>Số tiền nhận (đ)</label>
-      <input type="number" id="modal-received" placeholder="Để trống = thu đủ">
+    <div class="fg" style="margin-top:10px">
+      <label>Số tiền nhận (đ) *</label>
+      <input type="number" id="modal-received" placeholder="Nhập số tiền khách trả">
+      <div id="modal-received-err" style="color:#dc2626;font-size:11px;margin-top:3px;display:none">⚠ Vui lòng nhập số tiền nhận</div>
+    </div>
+    <div class="fg" style="margin-top:10px">
+      <label>Ngày giờ khách nhận *</label>
+      <input type="datetime-local" id="modal-deliver-dt">
+      <div id="modal-dt-err" style="color:#dc2626;font-size:11px;margin-top:3px;display:none">⚠ Vui lòng chọn ngày giờ giao</div>
     </div>
     <div class="modal-actions" style="margin-top:14px">
       <button class="btn-cancel-modal" onclick="closeDeliverModal()">Huỷ</button>
@@ -698,7 +693,16 @@ function setModalPay(p){
 async function confirmDeliver(){
   const o=orders.find(x=>x.id===deliverOrderId);if(!o)return;
   const deliverDt=document.getElementById('modal-deliver-dt').value;
-  const received=Number(document.getElementById('modal-received').value)||orderTotal(o);
+  const receivedRaw=document.getElementById('modal-received').value;
+  const received=Number(receivedRaw);
+  // Validate
+  let hasErr=false;
+  const dtErr=document.getElementById('modal-dt-err');
+  const recErr=document.getElementById('modal-received-err');
+  dtErr.style.display='none'; recErr.style.display='none';
+  if(!deliverDt){dtErr.style.display='block';hasErr=true;}
+  if(!receivedRaw&&receivedRaw!=='0'){recErr.style.display='block';hasErr=true;}
+  if(hasErr) return;
   const total=orderTotal(o);
   o.status='delivered';
   o.delivered_date=deliverDt;
