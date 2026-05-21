@@ -565,17 +565,18 @@ function renderEditPanel(o){
   if(o.status==='washing'){
     actionSection=`<div class="ep-section">
       <div class="ep-section-title">Hành động</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="btn-sm btn-green2" style="font-size:12px;padding:7px 14px" onclick="markDone(${o.id})">✅ Giặt xong</button>
-        <button class="btn-sm btn-red" style="margin-left:auto" onclick="delOrder(${o.id})">🗑 Xóa</button>
+        <button class="btn-sm btn-red" style="margin-left:auto" onclick="delOrder(${o.id})">🗑 Xóa đơn</button>
       </div>
     </div>`;
   } else if(o.status==='done'){
     actionSection=`<div class="ep-section">
       <div class="ep-section-title">Hành động</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn-sm btn-gray" onclick="undoStatus(${o.id})">↩ Hoàn tác</button>
         <button class="btn-orange" style="padding:8px 16px;font-size:13px;border-radius:8px;cursor:pointer;font-weight:700" onclick="openDeliverModal(${o.id})">📦 Giao & Thanh toán</button>
-        <button class="btn-sm btn-red" style="margin-left:auto" onclick="delOrder(${o.id})">🗑 Xóa</button>
+        <button class="btn-sm btn-red" style="margin-left:auto" onclick="delOrder(${o.id})">🗑 Xóa đơn</button>
       </div>
     </div>`;
   } else {
@@ -598,7 +599,9 @@ function renderEditPanel(o){
   return basicInfo+svcSection+actionSection+`
     <div class="ep-actions">
       <button class="btn-sm btn-gray" onclick="saveOrder(${o.id})">💾 Lưu</button>
+      ${o.status==='delivered'?`<button class="btn-sm btn-gray" onclick="undoStatus(${o.id})">↩ Hoàn tác giao</button>`:''}
       <button class="btn-sm btn-gray" onclick="toggleExpand(${o.id})">Đóng</button>
+      <button class="btn-sm btn-red" style="margin-left:auto" onclick="delOrder(${o.id})">🗑 Xóa đơn</button>
     </div>`;
 }
 
@@ -658,6 +661,23 @@ async function markDone(id){
   await db.from('orders').update({status:'done'}).eq('id',id);
   await logAction('update_order',o.order_code,'Giặt xong');
   toast('✅ Đánh dấu giặt xong!');
+  renderList();updateTopStats();
+}
+
+async function undoStatus(id){
+  const o=orders.find(x=>x.id===id);if(!o)return;
+  const prev={done:'washing',delivered:'done'}[o.status];
+  if(!prev){toast('Không thể hoàn tác','err');return;}
+  const label={washing:'Đang giặt',done:'Giặt xong'}[prev];
+  if(!confirm(`Hoàn tác về "${label}"?`))return;
+  const update={status:prev};
+  if(prev==='done') update.delivered_date=null, update.received=0, update.pay_method='cash';
+  o.status=prev;
+  if(prev==='done'){o.delivered_date=null;o.received=0;o.pay_method='cash';}
+  await db.from('orders').update(update).eq('id',id);
+  await logAction('update_order',o.order_code,`Hoàn tác → ${label}`);
+  toast('↩ Đã hoàn tác về "'+label+'"');
+  expandedId=id;
   renderList();updateTopStats();
 }
 
