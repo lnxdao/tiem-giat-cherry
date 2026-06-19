@@ -817,10 +817,7 @@ function renderOrderModal(o){
       <button class="om-pay-btn${o.pay_method==='cash'?' active-cash':''}" id="om-pay-cash" onclick="omSetPay('cash')">💵 Tiền mặt</button>
       <button class="om-pay-btn${o.pay_method==='transfer'?' active-transfer':''}" id="om-pay-xk" onclick="omSetPay('transfer')">📲 Chuyển khoản</button>
     </div>
-    <div class="om-field" style="margin-bottom:14px">
-      <div class="om-label">Đã nhận (đ)</div>
-      <input class="om-input" type="number" value="${o.received||0}" onchange="omField('received',this.value)" id="om-received">
-    </div>`:'';
+`:'';
 
   const deliverBtn=o.status==='done'?`
     <button class="om-deliver-btn" onclick="closeOrderModal();openDeliverModal(${o.id})">📦 Giao & Thanh toán</button>`:'';
@@ -889,6 +886,14 @@ function omField(field,val){
 function omSetStatus(status){
   const o=orders.find(x=>x.id===editOrderId);if(!o)return;
   o.status=status;
+  // Khi chuyển sang "đã giao" → tự điền tổng tiền nếu chưa có
+  if(status==='delivered'&&(!o.received||o.received===0)){
+    o.received=orderTotal(o);
+  }
+  // Khi hoàn tác về trạng thái khác → reset received
+  if(status==='done'||status==='washing'){
+    o.received=0;o.delivered_date=null;
+  }
   document.getElementById('order-modal-inner').innerHTML=renderOrderModal(o);
 }
 function omSetPay(pay){
@@ -951,6 +956,10 @@ function omUndo(){
 }
 async function omSave(){
   const o=orders.find(x=>x.id===editOrderId);if(!o)return;
+  // Nếu đã giao mà chưa có received → tự điền tổng tiền
+  if(o.status==='delivered'&&(!o.received||o.received===0)){
+    o.received=orderTotal(o);
+  }
   const{error}=await db.from('orders').update({
     customer_name:o.customer_name,phone:o.phone,date:o.date,
     note:o.note,pay_method:o.pay_method,received:o.received,
