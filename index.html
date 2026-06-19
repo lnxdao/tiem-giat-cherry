@@ -8,6 +8,7 @@
 const SUPABASE_URL     = 'https://lgmxbswfekhhlvhhdroe.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnbXhic3dmZWtoaGx2aGhkcm9lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNDIxMzYsImV4cCI6MjA5NDkxODEzNn0.b-TrpwPkjOaj6C6B1_o0ijkjVqixR3wJ2P_4c74fW3w';
 const SHOP_PASSWORD    = 'cherry2026';
+const ADMIN_PASSWORD   = 'cherry@admin';   // ← mật khẩu riêng cho Bảng giá & Lịch sử
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -184,6 +185,50 @@ hr.div{border:none;border-top:1px solid #f0f0f0;margin:11px 0}
 .cust-table th{padding:9px 13px;text-align:left;font-size:12px;font-weight:700;color:#555;background:#f8fafc;border-bottom:2px solid #e5e7eb}
 .cust-table td{padding:9px 13px;font-size:13px;color:#1e293b;border-bottom:1px solid #f5f5f5}
 .cust-table tr:hover td{background:#fafafa}
+/* ── ORDER EDIT MODAL ── */
+.order-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px}
+.order-modal{background:#fff;border-radius:18px;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.18)}
+.om-header{padding:18px 20px 0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1;border-bottom:1px solid #f0f0f0;padding-bottom:12px}
+.om-name{font-size:18px;font-weight:700;color:#1e293b}
+.om-close{width:28px;height:28px;border-radius:50%;border:none;background:#f3f4f6;color:#666;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.om-close:hover{background:#e5e7eb}
+.om-body{padding:16px 20px}
+.om-field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.om-field{display:flex;flex-direction:column;gap:4px}
+.om-field.full{grid-column:1/-1}
+.om-label{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.4px}
+.om-input{padding:9px 11px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:14px;outline:none;background:#fff;width:100%;font-family:inherit}
+.om-input:focus{border-color:#3b82f6}
+.om-svc-card{background:#f8fafc;border-radius:12px;padding:12px 14px;margin-bottom:10px;border:1px solid #e5e7eb}
+.om-svc-name{font-size:14px;font-weight:600;color:#1e293b;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.om-svc-price-badge{background:#dbeafe;color:#1d4ed8;border-radius:99px;padding:2px 10px;font-size:13px;font-weight:600}
+.om-svc-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:end}
+.om-svc-grid .om-field{margin:0}
+.om-kg-unit{font-size:13px;color:#888;padding-bottom:9px}
+.om-status-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.om-status-btn{flex:1;padding:9px 10px;border-radius:9px;border:1.5px solid #e5e7eb;background:#fff;font-size:13px;font-weight:600;cursor:pointer;text-align:center;min-width:80px}
+.om-status-btn.active-washing{background:#fef9c3;border-color:#f59e0b;color:#92400e}
+.om-status-btn.active-done{background:#dcfce7;border-color:#22c55e;color:#166534}
+.om-status-btn.active-delivered{background:#dbeafe;border-color:#3b82f6;color:#1d4ed8}
+.om-pay-row{display:flex;gap:8px;margin-bottom:14px}
+.om-pay-btn{flex:1;padding:9px;border-radius:9px;border:1.5px solid #e5e7eb;background:#fff;font-size:13px;font-weight:600;cursor:pointer;text-align:center}
+.om-pay-btn.active-cash{background:#dcfce7;border-color:#22c55e;color:#166534}
+.om-pay-btn.active-transfer{background:#ede9fe;border-color:#7c3aed;color:#5b21b6}
+.om-section-label{font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.om-footer{padding:14px 20px;border-top:1px solid #f0f0f0;display:flex;gap:8px;position:sticky;bottom:0;background:#fff}
+.om-btn-save{flex:1;background:#16a34a;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer}
+.om-btn-save:hover{background:#15803d}
+.om-btn-del{width:44px;height:44px;border-radius:10px;border:none;background:#fee2e2;color:#dc2626;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.om-btn-del:hover{background:#fecaca}
+.om-deliver-btn{width:100%;background:#f59e0b;color:#fff;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px}
+.om-deliver-btn:hover{background:#d97706}
+.om-undo-btn{width:100%;background:#f3f4f6;color:#555;border:none;border-radius:10px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:10px}
+.om-created{font-size:12px;color:#94a3b8;padding:0 20px 14px;display:flex;justify-content:space-between}
+.om-add-svc{width:100%;background:#f0f9ff;color:#0369a1;border:1.5px dashed #7dd3fc;border-radius:9px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:12px}
+.om-svc-select{padding:9px 11px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:13px;outline:none;background:#fff;width:100%;font-family:inherit;margin-bottom:8px}
+.om-svc-select:focus{border-color:#3b82f6}
+.om-divider{border:none;border-top:1px solid #f0f0f0;margin:14px 0}
+
 .toast{position:fixed;top:12px;right:16px;background:#1e3a5f;color:#fff;padding:9px 16px;border-radius:9px;font-size:13px;font-weight:600;opacity:0;transition:opacity .3s;z-index:9999;pointer-events:none}
 .toast.show{opacity:1}
 .empty{text-align:center;padding:26px;color:#aaa;font-size:13px}
@@ -221,8 +266,8 @@ hr.div{border:none;border-top:1px solid #f0f0f0;margin:11px 0}
     <button class="tab-btn active" onclick="switchTab('list',this)">Đơn hàng</button>
     <button class="tab-btn" onclick="switchTab('new',this)">➕ Tạo đơn</button>
     <button class="tab-btn" onclick="switchTab('stats',this)">Thống kê</button>
-    <button class="tab-btn" onclick="switchTab('catalog',this)">⚙️ Bảng giá</button>
-    <button class="tab-btn" onclick="switchTab('audit',this)">📋 Lịch sử</button>
+    <button class="tab-btn" onclick="switchTabAdmin('catalog',this)">⚙️ Bảng giá 🔒</button>
+    <button class="tab-btn" onclick="switchTabAdmin('audit',this)">📋 Lịch sử 🔒</button>
   </div>
   <div class="content no-print">
 
@@ -373,7 +418,31 @@ hr.div{border:none;border-top:1px solid #f0f0f0;margin:11px 0}
   </div>
 </div>
 
+
+<!-- ADMIN PASSWORD MODAL -->
+<div class="modal-overlay" id="admin-modal" style="display:none" onclick="if(event.target===this)closeAdminModal()">
+  <div class="modal-box" style="width:340px">
+    <div class="modal-title">🔒 Xác nhận quyền truy cập</div>
+    <div style="font-size:13px;color:var(--color-text-secondary,#666);margin-bottom:16px">Tab này chỉ dành cho quản lý. Nhập mật khẩu admin để tiếp tục.</div>
+    <div class="fg">
+      <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">Mật khẩu admin</label>
+      <input type="password" id="admin-pw-input" placeholder="••••••••" style="width:100%;padding:10px 12px;border:1.5px solid #d1d5db;border-radius:9px;font-size:14px;outline:none" onkeydown="if(event.key==='Enter')confirmAdmin()">
+      <div id="admin-pw-err" style="color:#dc2626;font-size:12px;margin-top:5px;display:none">⚠ Mật khẩu không đúng</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn-cancel-modal" onclick="closeAdminModal()">Huỷ</button>
+      <button class="btn-confirm" onclick="confirmAdmin()">Xác nhận</button>
+    </div>
+  </div>
+</div>
+
 <!-- IN HÓA ĐƠN -->
+
+<!-- ORDER EDIT MODAL -->
+<div class="order-modal-overlay" id="order-modal" style="display:none" onclick="if(event.target===this)closeOrderModal()">
+  <div class="order-modal" id="order-modal-inner"></div>
+</div>
+
 <div class="print-area" id="print-area"></div>
 <div class="toast" id="toast"></div>
 
@@ -459,6 +528,41 @@ checkAndPing();
 setInterval(checkAndPing, 6*60*60*1000);
 
 /* ══ TABS ══ */
+let pendingAdminTab = null;
+let pendingAdminBtn = null;
+
+function switchTabAdmin(tab, btn){
+  // Kiểm tra đã unlock trong session chưa
+  if(sessionStorage.getItem('cherry_admin')==='1'){
+    switchTab(tab, btn);
+    return;
+  }
+  // Chưa unlock → hiện modal
+  pendingAdminTab = tab;
+  pendingAdminBtn = btn;
+  document.getElementById('admin-pw-input').value='';
+  document.getElementById('admin-pw-err').style.display='none';
+  document.getElementById('admin-modal').style.display='flex';
+  setTimeout(()=>document.getElementById('admin-pw-input').focus(),100);
+}
+
+function confirmAdmin(){
+  const pw = document.getElementById('admin-pw-input').value;
+  if(pw !== ADMIN_PASSWORD){
+    document.getElementById('admin-pw-err').style.display='block';
+    return;
+  }
+  sessionStorage.setItem('cherry_admin','1');
+  closeAdminModal();
+  if(pendingAdminTab) switchTab(pendingAdminTab, pendingAdminBtn);
+}
+
+function closeAdminModal(){
+  document.getElementById('admin-modal').style.display='none';
+  pendingAdminTab=null; pendingAdminBtn=null;
+}
+
+
 function switchTab(tab,btn){
   document.querySelectorAll('.tab-pane').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -499,7 +603,7 @@ function updateTopStats(){
 
 /* ══ LIST ══ */
 function setFilter(f,btn){curFilter=f;expandedId=null;document.querySelectorAll('.fb').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderList();}
-function toggleExpand(id){expandedId=expandedId===id?null:id;renderList();}
+function toggleExpand(id){ openOrderModal(id); }
 
 function renderList(){
   const q=(document.getElementById('search-input').value||'').toLowerCase();
@@ -507,7 +611,7 @@ function renderList(){
   const el=document.getElementById('order-list');
   if(!list.length){el.innerHTML='<div class="empty">Không có đơn nào</div>';return;}
   el.innerHTML=list.map(o=>{
-    const total=orderTotal(o),pending=total-Number(o.received||0),st=STATUS[o.status],isExp=expandedId===o.id;
+    const total=orderTotal(o),pending=total-Number(o.received||0),st=STATUS[o.status];
     const pm=o.pay_method==='transfer'?'📲':'💵';
     const deliveredInfo=o.delivered_date?`<span class="oc-date">🏠 ${fmtDateTime(o.delivered_date)}</span>`:'';
     return `<div class="order-card">
@@ -518,7 +622,7 @@ function renderList(){
         ${deliveredInfo}
         ${o.status==='delivered'?`<span class="oc-date">${pm}</span>`:''}
         <span class="oc-status">${st.icon} ${st.label}</span>
-        <span style="font-size:13px;color:#bbb;margin-left:3px">${isExp?'▲':'▼'}</span>
+        <span style="font-size:13px;color:#bbb;margin-left:3px">›</span>
       </div>
       ${(o.order_items||[]).map(sv=>`<div class="or">
         <div class="or-svc">${sv.svc_name}${sv.qty?`<div class="or-detail">— ${sv.qty}</div>`:''}</div>
@@ -530,7 +634,7 @@ function renderList(){
         ${total>0?`<span style="margin-left:auto;font-weight:700;font-size:13px">Tổng: ${fmt(total)}</span>`:'<span style="margin-left:auto;color:#888;font-size:12px">Chưa có giá</span>'}
         <button class="btn-sm btn-blue" onclick="event.stopPropagation();printInvoice(${o.id})">🖨️</button>
       </div>
-      <div class="edit-panel${isExp?' open':''}" id="ep-${o.id}">${isExp?renderEditPanel(o):''}</div>
+
     </div>`;
   }).join('');
 }
@@ -657,6 +761,218 @@ function epSvcChange(id,i,val){
 }
 function epAddItem(id){const o=orders.find(x=>x.id===id);if(o){o.order_items.push({svc_name:'',qty:'',price:0,order_id:id});epRepaint(id);}}
 function epRemItem(id,i){const o=orders.find(x=>x.id===id);if(o&&o.order_items.length>1){o.order_items.splice(i,1);epRepaint(id);}}
+/* ══ ORDER EDIT MODAL ══ */
+let editOrderId = null;
+
+function openOrderModal(id){
+  const o=orders.find(x=>x.id===id);if(!o)return;
+  editOrderId=id;
+  document.getElementById('order-modal-inner').innerHTML=renderOrderModal(o);
+  document.getElementById('order-modal').style.display='flex';
+}
+function closeOrderModal(){
+  document.getElementById('order-modal').style.display='none';
+  editOrderId=null;
+}
+
+function renderOrderModal(o){
+  const total=orderTotal(o),st=STATUS[o.status];
+  const catOpts=catalog.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
+
+  const svcCards=(o.order_items||[]).map((sv,i)=>`
+    <div class="om-svc-card">
+      <div class="om-svc-name">
+        <select class="om-svc-select" onchange="omSvcChange(${i},this.value)">
+          <option value="">-- Chọn dịch vụ --</option>
+          ${catalog.map(c=>`<option value="${c.name}"${c.name===sv.svc_name?' selected':''}>${c.name}</option>`).join('')}
+          ${!catalog.find(c=>c.name===sv.svc_name)&&sv.svc_name?`<option value="${sv.svc_name}" selected>${sv.svc_name}</option>`:''}
+        </select>
+        <span class="om-svc-price-badge">${sv.price?fmt(sv.price):'—'}</span>
+      </div>
+      <div class="om-svc-grid">
+        <div class="om-field">
+          <div class="om-label">Khối lượng</div>
+          <input class="om-input" type="text" value="${sv.qty||''}" placeholder="5.9" onchange="omQtyChange(${i},this.value)" id="om-qty-${i}">
+        </div>
+        <div class="om-kg-unit">kg</div>
+        <div class="om-field">
+          <div class="om-label">Giá</div>
+          <input class="om-input" type="number" value="${sv.price||''}" placeholder="47000" onchange="omPriceChange(${i},this.value)" id="om-price-${i}">
+        </div>
+      </div>
+      ${o.order_items.length>1?`<button onclick="omRemSvc(${i})" style="margin-top:8px;background:#fee2e2;color:#dc2626;border:none;border-radius:7px;padding:4px 12px;font-size:12px;cursor:pointer;font-weight:600">🗑 Xóa dịch vụ này</button>`:''}
+    </div>`).join('');
+
+  const statusBtns=`
+    <div class="om-section-label">Trạng thái</div>
+    <div class="om-status-row">
+      <button class="om-status-btn${o.status==='washing'?' active-washing':''}" onclick="omSetStatus('washing')">👕 Giặt</button>
+      <button class="om-status-btn${o.status==='done'?' active-done':''}" onclick="omSetStatus('done')">✅ Xong</button>
+      <button class="om-status-btn${o.status==='delivered'?' active-delivered':''}" onclick="omSetStatus('delivered')">📦 Đã giao</button>
+    </div>`;
+
+  const paySection=o.status==='delivered'?`
+    <div class="om-section-label">Phương thức</div>
+    <div class="om-pay-row">
+      <button class="om-pay-btn${o.pay_method==='cash'?' active-cash':''}" id="om-pay-cash" onclick="omSetPay('cash')">💵 Tiền mặt</button>
+      <button class="om-pay-btn${o.pay_method==='transfer'?' active-transfer':''}" id="om-pay-xk" onclick="omSetPay('transfer')">📲 Chuyển khoản</button>
+    </div>
+    <div class="om-field" style="margin-bottom:14px">
+      <div class="om-label">Đã nhận (đ)</div>
+      <input class="om-input" type="number" value="${o.received||0}" onchange="omField('received',this.value)" id="om-received">
+    </div>`:'';
+
+  const deliverBtn=o.status==='done'?`
+    <button class="om-deliver-btn" onclick="closeOrderModal();openDeliverModal(${o.id})">📦 Giao & Thanh toán</button>`:'';
+
+  const undoBtn=(o.status==='done'||o.status==='delivered')?`
+    <button class="om-undo-btn" onclick="omUndo()">↩ Hoàn tác trạng thái</button>`:'';
+
+  return `
+    <div class="om-header">
+      <div class="om-name">${o.customer_name}</div>
+      <button class="om-close" onclick="closeOrderModal()">✕</button>
+    </div>
+    <div class="om-body">
+      <div class="om-field-row">
+        <div class="om-field">
+          <div class="om-label">SĐT</div>
+          <input class="om-input" type="text" value="${o.phone||''}" placeholder="—" onchange="omField('phone',this.value)">
+        </div>
+        <div class="om-field">
+          <div class="om-label">Ngày gửi</div>
+          <input class="om-input" type="date" value="${o.date}" onchange="omField('date',this.value)">
+        </div>
+      </div>
+      <div class="om-field-row">
+        <div class="om-field">
+          <div class="om-label">Ngày giao thực tế</div>
+          <input class="om-input" type="date" value="${o.delivered_date?o.delivered_date.slice(0,10):''}" onchange="omField('delivered_date',this.value)">
+        </div>
+        <div class="om-field">
+          <div class="om-label">Giờ giao</div>
+          <input class="om-input" type="time" value="${o.delivered_date?o.delivered_date.slice(11,16):''}" onchange="omSetDeliverTime(this.value)">
+        </div>
+      </div>
+
+      <hr class="om-divider">
+      <div class="om-section-label">Dịch vụ:</div>
+      ${svcCards}
+      <button class="om-add-svc" onclick="omAddSvc()">+ Thêm dịch vụ</button>
+
+      <hr class="om-divider">
+      ${statusBtns}
+      ${deliverBtn}
+      ${undoBtn}
+      ${paySection}
+
+      <div class="om-field">
+        <div class="om-label">Ghi chú dịch vụ</div>
+        <textarea class="om-input" rows="2" placeholder="Ghi chú thêm..." onchange="omField('note',this.value)" style="resize:vertical">${o.note||''}</textarea>
+      </div>
+    </div>
+    <div class="om-created">
+      <span>Ngày tạo</span>
+      <span>${fmtDateTime(o.created_at||o.date)}</span>
+    </div>
+    <div class="om-footer">
+      <button class="om-btn-save" onclick="omSave()">💾 Lưu</button>
+      <button class="om-btn-del" onclick="omDelete()" title="Xóa đơn">🗑</button>
+    </div>`;
+}
+
+function omField(field,val){
+  const o=orders.find(x=>x.id===editOrderId);if(!o)return;
+  if(field==='received') o[field]=Number(val);
+  else o[field]=val;
+}
+function omSetStatus(status){
+  const o=orders.find(x=>x.id===editOrderId);if(!o)return;
+  o.status=status;
+  document.getElementById('order-modal-inner').innerHTML=renderOrderModal(o);
+}
+function omSetPay(pay){
+  const o=orders.find(x=>x.id===editOrderId);if(!o)return;
+  o.pay_method=pay;
+  document.getElementById('order-modal-inner').innerHTML=renderOrderModal(o);
+}
+function omSetDeliverTime(time){
+  const o=orders.find(x=>x.id===editOrderId);if(!o)return;
+  const date=o.delivered_date?o.delivered_date.slice(0,10):o.date;
+  o.delivered_date=date+'T'+time+':00';
+}
+function omSvcChange(i,val){
+  const o=orders.find(x=>x.id===editOrderId);if(!o)return;
+  o.order_items[i].svc_name=val;
+  const cat=catalog.find(c=>c.name===val);
+  if(cat&&o.order_items[i].qty){
+    const p=computePrice(cat,o.order_items[i].qty);
+    if(p){o.order_items[i].price=p;}
+  }
+  document.getElementById('order-modal-inner').innerHTML=renderOrderModal(o);
+}
+function omQtyChange(i,qty){
+  const o=orders.find(x=>x.id===editOrderId);if(!o)return;
+  o.order_items[i].qty=qty;
+  const cat=catalog.find(c=>c.name===o.order_items[i].svc_name);
+  if(cat){
+    const p=computePrice(cat,qty);
+    if(p){
+      o.order_items[i].price=p;
+      const el=document.getElementById('om-price-'+i);
+      if(el) el.value=p;
+      // update badge
+      document.getElementById('order-modal-inner').innerHTML=renderOrderModal(o);
+    }
+  }
+}
+function omPriceChange(i,val){
+  const o=orders.find(x=>x.id===editOrderId);if(!o)return;
+  o.order_items[i].price=Number(val);
+}
+function omAddSvc(){
+  const o=orders.find(x=>x.id===editOrderId);if(!o)return;
+  o.order_items.push({svc_name:'',qty:'',price:0,order_id:o.id});
+  document.getElementById('order-modal-inner').innerHTML=renderOrderModal(o);
+}
+function omRemSvc(i){
+  const o=orders.find(x=>x.id===editOrderId);if(!o||o.order_items.length<=1)return;
+  o.order_items.splice(i,1);
+  document.getElementById('order-modal-inner').innerHTML=renderOrderModal(o);
+}
+function omUndo(){
+  const o=orders.find(x=>x.id===editOrderId);if(!o)return;
+  const prev={done:'washing',delivered:'done'}[o.status];
+  if(!prev)return;
+  if(!confirm('Hoàn tác về "'+STATUS[prev].label+'"?'))return;
+  o.status=prev;
+  if(prev==='done'){o.delivered_date=null;o.received=0;o.pay_method='cash';}
+  document.getElementById('order-modal-inner').innerHTML=renderOrderModal(o);
+}
+async function omSave(){
+  const o=orders.find(x=>x.id===editOrderId);if(!o)return;
+  const{error}=await db.from('orders').update({
+    customer_name:o.customer_name,phone:o.phone,date:o.date,
+    note:o.note,pay_method:o.pay_method,received:o.received,
+    status:o.status,delivered_date:o.delivered_date
+  }).eq('id',o.id);
+  if(error){toast('Lỗi lưu: '+error.message,'err');return;}
+  await db.from('order_items').delete().eq('order_id',o.id);
+  const items=o.order_items.filter(x=>x.svc_name).map(x=>({order_id:o.id,svc_name:x.svc_name,qty:x.qty,price:x.price}));
+  if(items.length) await db.from('order_items').insert(items);
+  await logAction('update_order',o.order_code||o.customer_name,`Lưu bởi ${currentUser.name}`);
+  toast('✅ Đã lưu đơn của '+o.customer_name);
+  closeOrderModal();
+  renderList();updateTopStats();
+}
+async function omDelete(){
+  const o=orders.find(x=>x.id===editOrderId);if(!o)return;
+  if(!confirm('Xóa đơn của '+o.customer_name+'?'))return;
+  await db.from('orders').delete().eq('id',o.id);
+  orders=orders.filter(x=>x.id!==o.id);
+  closeOrderModal();renderList();updateTopStats();toast('Đã xóa đơn');
+}
+
 function epRepaint(id){const o=orders.find(x=>x.id===id);if(!o)return;const ep=document.getElementById('ep-'+id);if(ep)ep.innerHTML=renderEditPanel(o);updateTopStats();}
 
 async function saveOrder(id){
