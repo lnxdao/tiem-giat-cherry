@@ -512,7 +512,7 @@ function renderList(){
     const deliveredInfo=o.delivered_date?`<span class="oc-date">🏠 ${fmtDateTime(o.delivered_date)}</span>`:'';
     return `<div class="order-card">
       <div class="oh" onclick="toggleExpand(${o.id})">
-        <span class="oc-name">${o.order_code||''} · ${o.customer_name}</span>
+        <span class="oc-name">${o.customer_name}</span>
         <span class="oc-date">📅 ${fmtDate(o.date)}${o.time?' '+String(o.time).slice(0,5):''}</span>
         ${o.phone?`<span class="oc-date">📞 ${o.phone}</span>`:''}
         ${deliveredInfo}
@@ -838,7 +838,7 @@ function printInvoice(id){
     <div class="hd-title">🧺 TIỆM GIẶT CHERRY</div>
     <div class="hd-sub">Cảm ơn quý khách!</div>
     <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:10px">
-      <div><strong>${o.order_code}</strong> · ${o.customer_name}${o.phone?' · '+o.phone:''}</div>
+      <div><strong>${o.customer_name}</strong>${o.phone?' · '+o.phone:''}</div>
       <div>Gửi: ${fmtDate(o.date)}${o.delivered_date?'<br>Nhận: '+fmtDateTime(o.delivered_date):''}</div>
     </div>
     <table class="hd-table">
