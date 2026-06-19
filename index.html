@@ -279,6 +279,9 @@ hr.div{border:none;border-top:1px solid #f0f0f0;margin:11px 0}
         <div class="sc green"><div class="sc-icon">✅</div><div class="sc-label">Xong + Giao</div><div class="sc-value" id="s-done">—</div></div>
         <div class="sc purple"><div class="sc-icon">💰</div><div class="sc-label">Đã nhận hôm nay</div><div class="sc-value" id="s-received" style="font-size:14px">—</div></div>
       </div>
+      <!-- TỔNG ĐƠN THEO NGÀY -->
+      <div id="daily-summary" style="margin-bottom:12px"></div>
+
       <div class="filter-row">
         <button class="fb active" onclick="setFilter('all',this)">Tất cả</button>
         <button class="fb" onclick="setFilter('washing',this)">👕 Đang giặt</button>
@@ -578,7 +581,7 @@ function switchTab(tab,btn){
 
 /* ══ LOAD ══ */
 async function loadOrders(){
-  const{data}=await db.from('orders').select('*,order_items(*)').order('id',{ascending:false});
+  const{data}=await db.from('orders').select('*,order_items(*)').order('date',{ascending:false}).order('created_at',{ascending:false});
   orders=data||[];renderList();updateTopStats();
 }
 async function loadCatalog(){
@@ -591,6 +594,60 @@ async function loadCustomers(){
 }
 
 /* ══ TOP STATS ══ */
+function renderDailySummary(){
+  const el=document.getElementById('daily-summary');
+  if(!el) return;
+  // Lấy tất cả ngày có đơn, sort giảm dần
+  const dateSet=[...new Set(orders.map(o=>o.date))].sort((a,b)=>b>a?1:-1).slice(0,7);
+  if(!dateSet.length){el.innerHTML='';return;}
+  const rows=dateSet.map(d=>{
+    const dayOrds=orders.filter(o=>o.date===d);
+    const delivered=dayOrds.filter(o=>o.status==='delivered');
+    const total=dayOrds.reduce((s,o)=>s+orderTotal(o),0);
+    const received=delivered.reduce((s,o)=>s+Number(o.received||0),0);
+    const isToday=d===today();
+    return{d,cnt:dayOrds.length,delivered:delivered.length,total,received,isToday};
+  });
+  el.innerHTML=`<div style="background:#fff;border-radius:12px;border:0.5px solid #e5e7eb;overflow:hidden;margin-bottom:2px">
+    <div style="padding:8px 14px;background:#f8fafc;border-bottom:1px solid #f0f0f0;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px">
+      Tổng đơn theo ngày
+    </div>
+    ${rows.map(r=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:0.5px solid #f5f5f5;cursor:pointer;transition:background .1s"
+         onclick="filterByDate('${r.d}')"
+         onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''"
+    >
+      <div style="min-width:68px;font-size:13px;font-weight:${r.isToday?700:500};color:${r.isToday?'#1e3a5f':'#374151'}">
+        ${fmtDate(r.d)}${r.isToday?' <span style="font-size:10px;background:#dbeafe;color:#1d4ed8;border-radius:99px;padding:1px 6px;font-weight:600">Hôm nay</span>':''}
+      </div>
+      <div style="flex:1;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:12px;color:#555">
+          <span style="font-weight:600;color:#1e293b">${r.cnt}</span> đơn
+        </span>
+        <span style="font-size:11px;color:#888">·</span>
+        <span style="font-size:12px;color:#16a34a;font-weight:600">
+          ${r.delivered} đã giao
+        </span>
+        ${r.cnt>r.delivered?`<span style="font-size:11px;color:#f59e0b;font-weight:600">${r.cnt-r.delivered} chờ</span>`:''}
+      </div>
+      <div style="font-size:13px;font-weight:700;color:#1e293b;white-space:nowrap">${fmt(r.received)}</div>
+      <div style="font-size:11px;color:#94a3b8">›</div>
+    </div>`).join('')}
+  </div>`;
+}
+
+function filterByDate(date){
+  // Set filter về all, lọc search theo ngày
+  curFilter='all';
+  document.querySelectorAll('.fb').forEach(b=>b.classList.remove('active'));
+  document.querySelector('.fb').classList.add('active');
+  // Scroll to first order of that date
+  const firstOrder=orders.find(o=>o.date===date);
+  if(firstOrder){
+    openOrderModal(firstOrder.id);
+  }
+}
+
 function updateTopStats(){
   const t=today();
   document.getElementById('s-total').textContent=orders.reduce((s,o)=>s+(o.order_items||[]).length,0);
