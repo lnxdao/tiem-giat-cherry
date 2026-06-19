@@ -342,9 +342,8 @@ hr.div{border:none;border-top:1px solid #f0f0f0;margin:11px 0}
         <div class="ss-card r"><div class="ss-icon">⏳</div><div class="ss-label">Chưa thu</div><div class="ss-value" id="st-pending">—</div></div>
       </div>
       <div class="chart-card"><div class="chart-lbl" id="chart-lbl">Doanh thu theo ngày</div><div class="bar-chart" id="bar-chart"></div></div>
-      <div class="chart-card"><div class="chart-lbl">Chi tiết theo ngày</div>
-        <table class="day-table"><thead><tr><th>Ngày</th><th>Đơn</th><th>Tổng</th><th>💵 TM</th><th>📲 CK</th><th>Chưa thu</th></tr></thead>
-        <tbody id="day-tbody"></tbody></table>
+      <div class="chart-card"><div class="chart-lbl">📅 Doanh thu theo ngày giao</div>
+        <div id="day-tbody"></div>
       </div>
       <div class="chart-card"><div class="chart-lbl">Phân bổ dịch vụ</div><div id="svc-breakdown"></div></div>
     </div>
@@ -1393,13 +1392,40 @@ function renderStats(){
   const tr=[...days].reverse().map(d=>{
     const dO=inR.filter(o=>(o.delivered_date||o.date).slice(0,10)===d);
     if(!dO.length)return null;
-    const dt=dO.reduce((s,o)=>s+Number(o.received||0),0);
+    const dt=dO.reduce((s,o)=>s+orderTotal(o),0);
     const dc=dO.filter(o=>o.pay_method==='cash').reduce((s,o)=>s+Number(o.received||0),0);
     const dx=dO.filter(o=>o.pay_method==='transfer').reduce((s,o)=>s+Number(o.received||0),0);
-    return{d,cnt:dO.length,dt,dc,dx};
+    const unpaid=dO.reduce((s,o)=>s+Math.max(orderTotal(o)-Number(o.received||0),0),0);
+    return{d,cnt:dO.length,dt,dc,dx,unpaid};
   }).filter(Boolean);
-  const sb=tr.reduce((a,r)=>({cnt:a.cnt+r.cnt,dt:a.dt+r.dt,dc:a.dc+r.dc,dx:a.dx+r.dx}),{cnt:0,dt:0,dc:0,dx:0});
-  document.getElementById('day-tbody').innerHTML=tr.map(r=>`<tr><td>${fmtDate(r.d)}</td><td>${r.cnt}</td><td class="td-tot">${fmt(r.dt)}</td><td class="td-cash">${fmt(r.dc)}</td><td class="td-xk">${fmt(r.dx)}</td><td>✅</td></tr>`).join('')+(tr.length?`<tr style="font-weight:700;background:#f9fafb;border-top:2px solid #e0e0e0"><td>Tổng</td><td>${sb.cnt}</td><td class="td-tot">${fmt(sb.dt)}</td><td class="td-cash">${fmt(sb.dc)}</td><td class="td-xk">${fmt(sb.dx)}</td><td></td></tr>`:'');
+
+  document.getElementById('day-tbody').innerHTML=tr.length
+    ? tr.map(r=>`
+      <div style="border:1px solid #f0f0f0;border-radius:10px;margin-bottom:10px;overflow:hidden">
+        <div style="padding:10px 16px;background:#f8fafc;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:13px;font-weight:700;color:#1e293b">${new Date(r.d).toLocaleDateString('vi-VN')}</span>
+          <span style="font-size:11px;color:#94a3b8">${r.cnt} đơn</span>
+        </div>
+        <div style="padding:4px 0">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 16px;border-bottom:1px solid #f8f8f8">
+            <span style="font-size:13px;color:#374151">💵 Tiền mặt</span>
+            <span style="font-size:13px;font-weight:600;color:#16a34a">${fmt(r.dc)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 16px;border-bottom:1px solid #f8f8f8">
+            <span style="font-size:13px;color:#374151">📲 Chuyển khoản</span>
+            <span style="font-size:13px;font-weight:600;color:#7c3aed">${fmt(r.dx)}</span>
+          </div>
+          ${r.unpaid>0?`<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 16px;border-bottom:1px solid #f8f8f8">
+            <span style="font-size:13px;color:#374151">⏳ Chưa thanh toán</span>
+            <span style="font-size:13px;font-weight:600;color:#f59e0b">${fmt(r.unpaid)}</span>
+          </div>`:''}
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#f8fafc">
+            <span style="font-size:13px;font-weight:700;color:#1e293b">Tổng cộng</span>
+            <span style="font-size:14px;font-weight:700;color:#1e293b">${fmt(r.dt)}</span>
+          </div>
+        </div>
+      </div>`).join('')
+    : '<div style="text-align:center;color:#aaa;padding:20px;font-size:13px">Không có dữ liệu</div>';
 
   const sR={};inR.forEach(o=>(o.order_items||[]).forEach(sv=>{sR[sv.svc_name]=(sR[sv.svc_name]||0)+Number(sv.price||0);}));
   const sT=Object.values(sR).reduce((a,b)=>a+b,0)||1;
