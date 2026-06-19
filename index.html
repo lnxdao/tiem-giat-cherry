@@ -7,7 +7,7 @@
 <script>
 const SUPABASE_URL     = 'https://lgmxbswfekhhlvhhdroe.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnbXhic3dmZWtoaGx2aGhkcm9lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNDIxMzYsImV4cCI6MjA5NDkxODEzNn0.b-TrpwPkjOaj6C6B1_o0ijkjVqixR3wJ2P_4c74fW3w';
-const SHOP_PASSWORD    = '123456';
+const SHOP_PASSWORD    = 'cherry2026';
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -437,6 +437,26 @@ async function startApp(name){
 }
 const _su=sessionStorage.getItem('cherry_user');
 if(_su) startApp(_su);
+
+/* ══ AUTO-PING: giữ Supabase luôn active, tránh bị pause ══
+   Ping mỗi 4 ngày bằng cách query nhẹ vào bảng catalog.
+   Thời điểm ping cuối lưu trong localStorage.               */
+async function pingSupabase(){
+  try{
+    await db.from('catalog').select('id').limit(1);
+    localStorage.setItem('cherry_last_ping', Date.now().toString());
+    console.log('Supabase ping OK —', new Date().toLocaleString('vi-VN'));
+  }catch(e){
+    console.warn('Ping failed:', e.message);
+  }
+}
+function checkAndPing(){
+  const last=parseInt(localStorage.getItem('cherry_last_ping')||'0');
+  const FOUR_DAYS=4*24*60*60*1000;
+  if(Date.now()-last>FOUR_DAYS) pingSupabase();
+}
+checkAndPing();
+setInterval(checkAndPing, 6*60*60*1000);
 
 /* ══ TABS ══ */
 function switchTab(tab,btn){
