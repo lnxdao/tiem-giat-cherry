@@ -654,7 +654,8 @@ function updateTopStats(){
   document.getElementById('s-washing').textContent=orders.filter(o=>o.status==='washing').length;
   document.getElementById('s-done').textContent=orders.filter(o=>o.status!=='washing').length;
   // Doanh thu hôm nay = đơn giao hôm nay (dùng delivered_date)
-  const todayRev=orders.filter(o=>o.status==='delivered'&&o.delivered_date&&o.delivered_date.startsWith(t)).reduce((s,o)=>s+Number(o.received||0),0);
+  // Dùng delivered_date nếu có, fallback về date nếu không có
+  const todayRev=orders.filter(o=>o.status==='delivered'&&((o.delivered_date&&o.delivered_date.startsWith(t))||(!o.delivered_date&&o.date===t))).reduce((s,o)=>s+Number(o.received||0),0);
   document.getElementById('s-received').textContent=fmt(todayRev);
 }
 
@@ -1013,6 +1014,19 @@ function omUndo(){
 }
 async function omSave(){
   const o=orders.find(x=>x.id===editOrderId);if(!o)return;
+  // Cảnh báo nếu đã giao nhưng chưa nhập ngày giao
+  if(o.status==='delivered'&&!o.delivered_date){
+    // Highlight trường ngày giao
+    const dtInput=document.querySelector('#order-modal-inner input[type="date"]:nth-of-type(2)');
+    if(dtInput){
+      dtInput.style.border='2px solid #dc2626';
+      dtInput.style.background='#fff1f2';
+      dtInput.focus();
+      setTimeout(()=>{dtInput.style.border='';dtInput.style.background='';},3000);
+    }
+    toast('⚠️ Vui lòng nhập ngày giao trước khi lưu!','err');
+    return;
+  }
   // Nếu đã giao mà chưa có received → tự điền tổng tiền
   if(o.status==='delivered'&&(!o.received||o.received===0)){
     o.received=orderTotal(o);
