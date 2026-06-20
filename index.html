@@ -283,9 +283,6 @@ hr.div{border:none;border-top:1px solid #f0f0f0;margin:11px 0}
         <div class="sc green"><div class="sc-icon">✅</div><div class="sc-label">Xong + Giao</div><div class="sc-value" id="s-done">—</div></div>
         <div class="sc purple"><div class="sc-icon">💰</div><div class="sc-label">Đã nhận hôm nay</div><div class="sc-value" id="s-received" style="font-size:14px">—</div></div>
       </div>
-      <!-- TỔNG ĐƠN THEO NGÀY -->
-      <div id="daily-summary" style="margin-bottom:12px"></div>
-
       <div class="filter-row">
         <button class="fb active" onclick="setFilter('all',this)">Tất cả</button>
         <button class="fb" onclick="setFilter('washing',this)">👕 Đang giặt</button>
@@ -392,56 +389,6 @@ hr.div{border:none;border-top:1px solid #f0f0f0;margin:11px 0}
   </div>
 </div>
 
-<!-- MODAL GIAO & THANH TOÁN -->
-<div class="modal-overlay" id="deliver-modal" style="display:none" onclick="if(event.target===this)closeDeliverModal()">
-  <div class="modal-box">
-    <div class="modal-title">📦 Giao hàng & Thanh toán</div>
-    <div class="modal-summary">
-      <div id="modal-order-info" style="font-size:13px;color:#374151"></div>
-      <div class="total" id="modal-total"></div>
-    </div>
-    <div class="fg">
-      <label>Hình thức thanh toán *</label>
-      <div class="pay-toggle" style="margin-top:4px">
-        <button class="pay-opt active-cash" id="modal-pay-cash" onclick="setModalPay('cash')">💵 Tiền mặt</button>
-        <button class="pay-opt" id="modal-pay-xk" onclick="setModalPay('transfer')">📲 Chuyển khoản</button>
-      </div>
-    </div>
-    <div class="fg" style="margin-top:10px">
-      <label>Số tiền nhận (đ) *</label>
-      <input type="number" id="modal-received" placeholder="Nhập số tiền khách trả">
-      <div id="modal-received-err" style="color:#dc2626;font-size:11px;margin-top:3px;display:none">⚠ Vui lòng nhập số tiền nhận</div>
-    </div>
-    <div class="fg" style="margin-top:10px">
-      <label>Ngày giờ khách nhận *</label>
-      <input type="datetime-local" id="modal-deliver-dt">
-      <div id="modal-dt-err" style="color:#dc2626;font-size:11px;margin-top:3px;display:none">⚠ Vui lòng chọn ngày giờ giao</div>
-    </div>
-    <div class="modal-actions" style="margin-top:14px">
-      <button class="btn-cancel-modal" onclick="closeDeliverModal()">Huỷ</button>
-      <button class="btn-confirm" onclick="confirmDeliver()">✅ Xác nhận giao</button>
-    </div>
-  </div>
-</div>
-
-
-<!-- ADMIN PASSWORD MODAL -->
-<div class="modal-overlay" id="admin-modal" style="display:none" onclick="if(event.target===this)closeAdminModal()">
-  <div class="modal-box" style="width:340px">
-    <div class="modal-title">🔒 Xác nhận quyền truy cập</div>
-    <div style="font-size:13px;color:var(--color-text-secondary,#666);margin-bottom:16px">Tab này chỉ dành cho quản lý. Nhập mật khẩu admin để tiếp tục.</div>
-    <div class="fg">
-      <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">Mật khẩu admin</label>
-      <input type="password" id="admin-pw-input" placeholder="••••••••" style="width:100%;padding:10px 12px;border:1.5px solid #d1d5db;border-radius:9px;font-size:14px;outline:none" onkeydown="if(event.key==='Enter')confirmAdmin()">
-      <div id="admin-pw-err" style="color:#dc2626;font-size:12px;margin-top:5px;display:none">⚠ Mật khẩu không đúng</div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:16px">
-      <button class="btn-cancel-modal" onclick="closeAdminModal()">Huỷ</button>
-      <button class="btn-confirm" onclick="confirmAdmin()">Xác nhận</button>
-    </div>
-  </div>
-</div>
-
 <!-- IN HÓA ĐƠN -->
 
 <!-- ORDER EDIT MODAL -->
@@ -455,12 +402,13 @@ hr.div{border:none;border-top:1px solid #f0f0f0;margin:11px 0}
 <script>
 const {createClient}=supabase;
 const db=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-let currentUser=null,orders=[],catalog=[],customers=[],curFilter='all',expandedId=null,statPeriod='day',fSvcRows=[],promoMode=false,deliverOrderId=null,modalPayMethod='cash';
+let currentUser=null,orders=[],catalog=[],customers=[],curFilter='all',expandedId=null,statPeriod='day',fSvcRows=[],promoMode=false;
 
 const STATUS={
   washing: {label:'Đang giặt',icon:'👕'},
   done:    {label:'Giặt xong',icon:'✅'},
-  delivered:{label:'Đã giao', icon:'📦'}
+  delivered:{label:'Đã giao', icon:'📦'},
+  mixed:   {label:'Một phần đã giao',icon:'🔀'}
 };
 
 /* ══ UTILS ══ */
@@ -469,6 +417,20 @@ function today(offset=0){const d=new Date();d.setDate(d.getDate()+offset);return
 function fmtDate(s){if(!s)return'--';const p=s.split('-');return p[2]+'/'+p[1]+'/'+p[0].slice(2);}
 function fmtDateTime(s){if(!s)return'--';const d=new Date(s);return d.toLocaleDateString('vi-VN')+' '+d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});}
 function orderTotal(o){return(o.order_items||[]).reduce((s,sv)=>s+Number(sv.price||0),0);}
+/* ══ Helpers cho trạng thái/thanh toán THEO TỪNG DỊCH VỤ ══ */
+function itemStatus(sv){return sv.status||'washing';}
+function orderReceived(o){return(o.order_items||[]).reduce((s,sv)=>s+Number(sv.received||0),0);}
+function orderOverallStatus(o){
+  const items=o.order_items||[];
+  if(!items.length) return 'washing';
+  if(items.every(sv=>itemStatus(sv)==='delivered')) return 'delivered';
+  if(items.every(sv=>itemStatus(sv)==='washing')) return 'washing';
+  if(items.some(sv=>itemStatus(sv)==='delivered')) return 'mixed';
+  return 'done';
+}
+function orderHasStatus(o,status){
+  return (o.order_items||[]).some(sv=>itemStatus(sv)===status);
+}
 function effectivePrice(c){return c.promo_price!=null?c.promo_price:c.price;}
 function tierEffective(t){return t.promoPrice!=null?t.promoPrice:t.price;}
 function toast(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.style.background=type==='err'?'#dc2626':'#1e3a5f';t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
@@ -621,11 +583,12 @@ function renderDailySummary(){
   if(!dateSet.length){el.innerHTML='';return;}
   const rows=dateSet.map(d=>{
     const dayOrds=orders.filter(o=>o.date===d);
-    const delivered=dayOrds.filter(o=>o.status==='delivered');
-    const total=dayOrds.reduce((s,o)=>s+orderTotal(o),0);
-    const received=delivered.reduce((s,o)=>s+Number(o.received||0),0);
+    const dayItems=dayOrds.flatMap(o=>o.order_items||[]);
+    const deliveredItems=dayItems.filter(sv=>itemStatus(sv)==='delivered');
+    const total=dayItems.reduce((s,sv)=>s+Number(sv.price||0),0);
+    const received=deliveredItems.reduce((s,sv)=>s+Number(sv.received||0),0);
     const isToday=d===today();
-    return{d,cnt:dayOrds.length,delivered:delivered.length,total,received,isToday};
+    return{d,cnt:dayOrds.length,delivered:deliveredItems.length,svcCnt:dayItems.length,total,received,isToday};
   });
   el.innerHTML=`<div style="background:#fff;border-radius:12px;border:0.5px solid #e5e7eb;overflow:hidden;margin-bottom:2px">
     <div style="padding:8px 14px;background:#f8fafc;border-bottom:1px solid #f0f0f0;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px">
@@ -641,13 +604,13 @@ function renderDailySummary(){
       </div>
       <div style="flex:1;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span style="font-size:12px;color:#555">
-          <span style="font-weight:600;color:#1e293b">${r.cnt}</span> đơn
+          <span style="font-weight:600;color:#1e293b">${r.cnt}</span> đơn · <span style="font-weight:600;color:#1e293b">${r.svcCnt}</span> dịch vụ
         </span>
         <span style="font-size:11px;color:#888">·</span>
         <span style="font-size:12px;color:#16a34a;font-weight:600">
           ${r.delivered} đã giao
         </span>
-        ${r.cnt>r.delivered?`<span style="font-size:11px;color:#f59e0b;font-weight:600">${r.cnt-r.delivered} chờ</span>`:''}
+        ${r.svcCnt>r.delivered?`<span style="font-size:11px;color:#f59e0b;font-weight:600">${r.svcCnt-r.delivered} chờ</span>`:''}
       </div>
       <div style="font-size:13px;font-weight:700;color:#1e293b;white-space:nowrap">${fmt(r.received)}</div>
       <div style="font-size:11px;color:#94a3b8">›</div>
@@ -669,12 +632,12 @@ function filterByDate(date){
 
 function updateTopStats(){
   const t=today();
-  document.getElementById('s-total').textContent=orders.reduce((s,o)=>s+(o.order_items||[]).length,0);
-  document.getElementById('s-washing').textContent=orders.filter(o=>o.status==='washing').length;
-  document.getElementById('s-done').textContent=orders.filter(o=>o.status!=='washing').length;
-  // Doanh thu hôm nay = đơn giao hôm nay (dùng delivered_date)
-  // Dùng delivered_date nếu có, fallback về date nếu không có
-  const todayRev=orders.filter(o=>o.status==='delivered'&&((o.delivered_date&&o.delivered_date.startsWith(t))||(!o.delivered_date&&o.date===t))).reduce((s,o)=>s+Number(o.received||0),0);
+  const allItems=orders.flatMap(o=>o.order_items||[]);
+  document.getElementById('s-total').textContent=allItems.length;
+  document.getElementById('s-washing').textContent=allItems.filter(sv=>itemStatus(sv)==='washing').length;
+  document.getElementById('s-done').textContent=allItems.filter(sv=>itemStatus(sv)!=='washing').length;
+  // Doanh thu hôm nay = dịch vụ giao hôm nay (dùng delivered_date của từng item)
+  const todayRev=allItems.filter(sv=>itemStatus(sv)==='delivered'&&((sv.delivered_date&&sv.delivered_date.startsWith(t))||(!sv.delivered_date&&false))).reduce((s,sv)=>s+Number(sv.received||0),0);
   document.getElementById('s-received').textContent=fmt(todayRev);
 }
 
@@ -682,34 +645,50 @@ function updateTopStats(){
 function setFilter(f,btn){curFilter=f;expandedId=null;document.querySelectorAll('.fb').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderList();}
 function toggleExpand(id){ openOrderModal(id); }
 
+const ITEM_ST_BADGE={
+  washing:  {label:'Đang giặt', bg:'#fef9c3', fg:'#92400e'},
+  done:     {label:'Giặt xong', bg:'#dcfce7', fg:'#166534'},
+  delivered:{label:'Đã giao',   bg:'#dbeafe', fg:'#1d4ed8'}
+};
+
 function renderList(){
   const q=(document.getElementById('search-input').value||'').toLowerCase();
-  const list=orders.filter(o=>(curFilter==='all'||o.status===curFilter)&&(!q||o.customer_name.toLowerCase().includes(q)||(o.phone||'').includes(q)));
+  const list=orders.filter(o=>{
+    const matchesFilter = curFilter==='all' || orderHasStatus(o,curFilter);
+    const matchesQ = !q || o.customer_name.toLowerCase().includes(q) || (o.phone||'').includes(q);
+    return matchesFilter && matchesQ;
+  });
   const el=document.getElementById('order-list');
   if(!list.length){el.innerHTML='<div class="empty">Không có đơn nào</div>';return;}
   el.innerHTML=list.map(o=>{
-    const total=orderTotal(o),pending=total-Number(o.received||0),st=STATUS[o.status];
-    const pm=o.pay_method==='transfer'?'📲':'💵';
-    const deliveredInfo=o.delivered_date?`<span class="oc-date">🏠 ${fmtDateTime(o.delivered_date)}</span>`:'';
+    const total=orderTotal(o),received=orderReceived(o),pending=total-received;
+    const overallSt=orderOverallStatus(o);
+    const stInfo=STATUS[overallSt]||STATUS.washing;
     return `<div class="order-card">
       <div class="oh" onclick="toggleExpand(${o.id})">
         <span class="oc-name">${o.customer_name}</span>
         <span class="oc-date">📅 ${fmtDate(o.date)}${o.time?' '+String(o.time).slice(0,5):''}</span>
         ${o.phone?`<span class="oc-date">📞 ${o.phone}</span>`:''}
-        ${deliveredInfo}
-        ${o.status==='delivered'?`<span class="oc-date">${pm}</span>`:''}
-        <span class="oc-status">${st.icon} ${st.label}</span>
+        <span class="oc-status">${stInfo.icon} ${stInfo.label}</span>
         <span style="font-size:13px;color:#bbb;margin-left:3px">›</span>
       </div>
       ${o.note?`<div style="padding:6px 14px;background:#fffbeb;border-bottom:1px solid #fef3c7;font-size:12px;color:#92400e;display:flex;align-items:start;gap:5px">
         <span>📌</span><span><strong>Ghi chú:</strong> ${o.note}</span>
       </div>`:''}
-      ${(o.order_items||[]).map(sv=>`<div class="or">
-        <div class="or-svc">${sv.svc_name}${sv.qty?`<div class="or-detail">— ${sv.qty}</div>`:''}</div>
+      ${(o.order_items||[]).map((sv,i)=>{
+        const sb=ITEM_ST_BADGE[itemStatus(sv)]||ITEM_ST_BADGE.washing;
+        const pm=sv.pay_method==='transfer'?'📲':'💵';
+        return `<div class="or" style="align-items:center">
+        <div class="or-svc">
+          ${sv.svc_name}${sv.qty?` <span class="or-detail">— ${sv.qty}</span>`:''}
+          ${sv.status==='delivered'&&sv.delivered_date?`<div class="or-detail">🏠 ${fmtDateTime(sv.delivered_date)} ${pm}</div>`:''}
+        </div>
+        <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;background:${sb.bg};color:${sb.fg};white-space:nowrap;margin-right:8px">${sb.label}</span>
         <div class="or-price">${sv.price?fmt(sv.price):'—'}</div>
-      </div>`).join('')}
+      </div>`;
+      }).join('')}
       <div class="of">
-        ${total>0?`<span class="recv">Đã nhận: ${fmt(o.received||0)}</span>`:''}
+        ${total>0?`<span class="recv">Đã nhận: ${fmt(received)}</span>`:''}
         ${pending>0&&total>0?`<span class="unrecv">Còn: ${fmt(pending)}</span>`:''}
         ${total>0?`<span style="margin-left:auto;font-weight:700;font-size:13px">Tổng: ${fmt(total)}</span>`:'<span style="margin-left:auto;color:#888;font-size:12px">Chưa có giá</span>'}
         <button class="btn-sm btn-blue" onclick="event.stopPropagation();printInvoice(${o.id})">🖨️</button>
@@ -719,128 +698,6 @@ function renderList(){
   }).join('');
 }
 
-/* ══ EDIT PANEL ══ */
-function renderEditPanel(o){
-  const total=orderTotal(o),pending=total-Number(o.received||0),st=STATUS[o.status];
-  const catOpts=catalog.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
-  const items=o.order_items||[];
-
-  // Section 1: Thông tin cơ bản
-  const basicInfo=`<div class="ep-section">
-    <div class="ep-section-title">Thông tin đơn</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
-      <div class="fg"><label>Tên khách</label><input type="text" value="${o.customer_name}" onchange="epField(${o.id},'customer_name',this.value)"></div>
-      <div class="fg"><label>SĐT</label><input type="text" value="${o.phone||''}" onchange="epField(${o.id},'phone',this.value)"></div>
-      <div class="fg"><label>Ngày gửi</label><input type="date" value="${o.date}" onchange="epField(${o.id},'date',this.value)"></div>
-    </div>
-    <div class="fg" style="margin-top:6px"><label>Ghi chú</label><input type="text" value="${o.note||''}" onchange="epField(${o.id},'note',this.value)"></div>
-  </div>`;
-
-  // Section 2: Dịch vụ + Nhập kg → tự tính tiền
-  const svcRows=items.map((sv,i)=>{
-    const cat=catalog.find(c=>c.name===sv.svc_name);
-    return `<div class="ep-svc-row" id="eprow-${o.id}-${i}">
-      <div class="fg"><label>${i===0?'Dịch vụ':''}</label>
-        <select onchange="epSvcChange(${o.id},${i},this.value)">
-          <option value="">-- Chọn --</option>
-          ${catalog.map(c=>`<option value="${c.name}"${c.name===sv.svc_name?' selected':''}>${c.name}</option>`).join('')}
-          ${!catalog.find(c=>c.name===sv.svc_name)&&sv.svc_name?`<option value="${sv.svc_name}" selected>${sv.svc_name}</option>`:''}
-        </select>
-      </div>
-      <div class="fg"><label>${i===0?'Kg / SL':''}</label>
-        <input type="text" value="${sv.qty||''}" placeholder="3.5 kg" onchange="epQtyChange(${o.id},${i},this.value)" id="ep-qty-${o.id}-${i}">
-      </div>
-      <div class="fg"><label>${i===0?'Thành tiền':''}</label>
-        <input type="number" value="${sv.price||''}" placeholder="Tự tính" onchange="epUpdate(${o.id},${i},'price',this.value)" id="ep-price-${o.id}-${i}">
-      </div>
-      <button class="btn-rem" style="${i===0?'margin-top:17px':''}" onclick="epRemItem(${o.id},${i})">×</button>
-    </div>`;
-  }).join('');
-
-  const svcSection=`<div class="ep-section">
-    <div class="ep-section-title">Dịch vụ & Khối lượng</div>
-    ${svcRows}
-    <button class="btn-sm btn-blue" onclick="epAddItem(${o.id})">+ Thêm dịch vụ</button>
-    <div style="text-align:right;font-weight:700;font-size:14px;margin-top:8px;color:#1e293b">Tổng: ${fmt(total)}</div>
-  </div>`;
-
-  // Section 3: Trạng thái & Thanh toán
-  let actionSection='';
-  if(o.status==='washing'){
-    actionSection=`<div class="ep-section">
-      <div class="ep-section-title">Hành động</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn-sm btn-green2" style="font-size:12px;padding:7px 14px" onclick="markDone(${o.id})">✅ Giặt xong</button>
-        <button class="btn-sm btn-red" style="margin-left:auto" onclick="delOrder(${o.id})">🗑 Xóa đơn</button>
-      </div>
-    </div>`;
-  } else if(o.status==='done'){
-    actionSection=`<div class="ep-section">
-      <div class="ep-section-title">Hành động</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn-sm btn-gray" onclick="undoStatus(${o.id})">↩ Hoàn tác</button>
-        <button class="btn-orange" style="padding:8px 16px;font-size:13px;border-radius:8px;cursor:pointer;font-weight:700" onclick="openDeliverModal(${o.id})">📦 Giao & Thanh toán</button>
-        <button class="btn-sm btn-red" style="margin-left:auto" onclick="delOrder(${o.id})">🗑 Xóa đơn</button>
-      </div>
-    </div>`;
-  } else {
-    // delivered — show payment info + edit received
-    actionSection=`<div class="ep-section">
-      <div class="ep-section-title">Thanh toán</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
-        <div class="fg"><label>Ngày giờ nhận</label><input type="datetime-local" value="${o.delivered_date?o.delivered_date.slice(0,16):''}" onchange="epField(${o.id},'delivered_date',this.value)"></div>
-        <div class="fg"><label>Đã nhận (đ)</label><input type="number" value="${o.received||0}" onchange="epField(${o.id},'received',this.value)"></div>
-        <div class="fg"><label>Thanh toán</label>
-          <div class="pay-toggle">
-            <button class="pay-opt${o.pay_method==='cash'?' active-cash':''}" onclick="epField(${o.id},'pay_method','cash');epRepaint(${o.id})">💵 TM</button>
-            <button class="pay-opt${o.pay_method==='transfer'?' active-transfer':''}" onclick="epField(${o.id},'pay_method','transfer');epRepaint(${o.id})">📲 CK</button>
-          </div>
-        </div>
-      </div>
-    </div>`;
-  }
-
-  return basicInfo+svcSection+actionSection+`
-    <div class="ep-actions">
-      <button class="btn-sm btn-gray" onclick="saveOrder(${o.id})">💾 Lưu</button>
-      ${o.status==='delivered'?`<button class="btn-sm btn-gray" onclick="undoStatus(${o.id})">↩ Hoàn tác giao</button>`:''}
-      <button class="btn-sm btn-gray" onclick="toggleExpand(${o.id})">Đóng</button>
-      <button class="btn-sm btn-red" style="margin-left:auto" onclick="delOrder(${o.id})">🗑 Xóa đơn</button>
-    </div>`;
-}
-
-function epField(id,f,v){const o=orders.find(x=>x.id===id);if(o)o[f]=f==='received'?Number(v):v;updateTopStats();}
-function epUpdate(id,i,f,v){const o=orders.find(x=>x.id===id);if(o&&o.order_items[i])o.order_items[i][f]=f==='price'?Number(v):v;updateTopStats();}
-
-function epQtyChange(id,i,qty){
-  const o=orders.find(x=>x.id===id);if(!o)return;
-  o.order_items[i].qty=qty;
-  // tự tính giá từ bảng giá
-  const cat=catalog.find(c=>c.name===o.order_items[i].svc_name);
-  if(cat){
-    const price=computePrice(cat,qty);
-    o.order_items[i].price=price;
-    const priceEl=document.getElementById(`ep-price-${id}-${i}`);
-    if(priceEl) priceEl.value=price||'';
-    // cập nhật tổng
-    const totalEl=document.querySelector(`#ep-${id} .ep-section div[style*="text-align:right"]`);
-    if(totalEl) totalEl.textContent='Tổng: '+fmt(orderTotal(o));
-  }
-  updateTopStats();
-}
-
-function epSvcChange(id,i,val){
-  const o=orders.find(x=>x.id===id);if(!o)return;
-  o.order_items[i].svc_name=val;
-  const qty=o.order_items[i].qty;
-  if(qty){
-    const cat=catalog.find(c=>c.name===val);
-    if(cat) o.order_items[i].price=computePrice(cat,qty);
-  }
-  epRepaint(id);
-}
-function epAddItem(id){const o=orders.find(x=>x.id===id);if(o){o.order_items.push({svc_name:'',qty:'',price:0,order_id:id});epRepaint(id);}}
-function epRemItem(id,i){const o=orders.find(x=>x.id===id);if(o&&o.order_items.length>1){o.order_items.splice(i,1);epRepaint(id);}}
 /* ══ ORDER EDIT MODAL ══ */
 let editOrderId = null;
 
@@ -856,19 +713,36 @@ function closeOrderModal(){
 }
 
 function renderOrderModal(o){
-  const total=orderTotal(o),st=STATUS[o.status];
-  const catOpts=catalog.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
+  const total=orderTotal(o), received=orderReceived(o);
+  const overallSt=orderOverallStatus(o);
 
-  const svcCards=(o.order_items||[]).map((sv,i)=>`
+  const ST_BADGE2={
+    washing:  {label:'Đang giặt', bg:'#fef9c3', fg:'#92400e', icon:'👕'},
+    done:     {label:'Giặt xong', bg:'#dcfce7', fg:'#166534', icon:'✅'},
+    delivered:{label:'Đã giao',   bg:'#dbeafe', fg:'#1d4ed8', icon:'📦'}
+  };
+  const svcCards=(o.order_items||[]).map((sv,i)=>{
+    const st=itemStatus(sv);
+    const isDelivered=st==='delivered';
+    const isDone=st==='done';
+    const sb=ST_BADGE2[st];
+    const paidBadge=isDelivered?`<span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;background:#dcfce7;color:#166534;margin-left:6px">✅ Đã thanh toán</span>`:'';
+    return `
     <div class="om-svc-card">
       <div class="om-svc-name">
-        <select class="om-svc-select" onchange="omSvcChange(${i},this.value)">
+        <select class="om-svc-select" onchange="omSvcChange(${i},this.value)" style="flex:1">
           <option value="">-- Chọn dịch vụ --</option>
           ${catalog.map(c=>`<option value="${c.name}"${c.name===sv.svc_name?' selected':''}>${c.name}</option>`).join('')}
           ${!catalog.find(c=>c.name===sv.svc_name)&&sv.svc_name?`<option value="${sv.svc_name}" selected>${sv.svc_name}</option>`:''}
         </select>
         <span class="om-svc-price-badge">${sv.price?fmt(sv.price):'—'}</span>
       </div>
+
+      <div style="margin-bottom:10px">
+        <span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;background:${sb.bg};color:${sb.fg}">${sb.icon} ${sb.label}</span>
+        ${paidBadge}
+      </div>
+
       <div class="om-svc-grid">
         <div class="om-field">
           <div class="om-label">Khối lượng</div>
@@ -880,30 +754,44 @@ function renderOrderModal(o){
           <input class="om-input" type="number" value="${sv.price||''}" placeholder="47000" onchange="omPriceChange(${i},this.value)" id="om-price-${i}">
         </div>
       </div>
-      ${o.order_items.length>1?`<button onclick="omRemSvc(${i})" style="margin-top:8px;background:#fee2e2;color:#dc2626;border:none;border-radius:7px;padding:4px 12px;font-size:12px;cursor:pointer;font-weight:600">🗑 Xóa dịch vụ này</button>`:''}
-    </div>`).join('');
 
-  const statusBtns=`
-    <div class="om-section-label">Trạng thái</div>
-    <div class="om-status-row">
-      <button class="om-status-btn${o.status==='washing'?' active-washing':''}" onclick="omSetStatus('washing')">👕 Giặt</button>
-      <button class="om-status-btn${o.status==='done'?' active-done':''}" onclick="omSetStatus('done')">✅ Xong</button>
-      <button class="om-status-btn${o.status==='delivered'?' active-delivered':''}" onclick="omSetStatus('delivered')">📦 Đã giao</button>
+      <div class="om-field-row" style="margin-top:8px">
+        <div class="om-field">
+          <div class="om-label">Ngày giao thực tế</div>
+          <input class="om-input" type="date" value="${sv.delivered_date?sv.delivered_date.slice(0,10):''}" onchange="omItemSetDeliverDate(${i},this.value)" id="om-svc-date-${i}">
+        </div>
+        <div class="om-field">
+          <div class="om-label">Giờ giao</div>
+          <input class="om-input" type="time" value="${sv.delivered_date?sv.delivered_date.slice(11,16):'00:00'}" onchange="omItemSetDeliverTime(${i},this.value)">
+        </div>
+      </div>
+
+      <div class="om-field" style="margin-top:8px">
+        <div class="om-label">Phương thức</div>
+        <div class="om-pay-row">
+          <button class="om-pay-btn${(sv.pay_method||'cash')==='cash'?' active-cash':''}" onclick="omItemSetPay(${i},'cash')">💵 Tiền mặt</button>
+          <button class="om-pay-btn${sv.pay_method==='transfer'?' active-transfer':''}" onclick="omItemSetPay(${i},'transfer')">📲 Chuyển khoản</button>
+        </div>
+      </div>
+
+      <div class="om-field" style="margin-top:8px">
+        <div class="om-label">Ghi chú dịch vụ</div>
+        <textarea class="om-input" rows="2" placeholder="Ghi chú thêm..." onchange="omItemField(${i},'note',this.value)" style="resize:vertical">${sv.note||''}</textarea>
+      </div>
+
+      <hr style="border:none;border-top:1px dashed #e5e7eb;margin:12px 0 10px">
+
+      <div class="om-status-row">
+        <button class="om-status-btn${st==='washing'?' active-washing':''}" onclick="omItemSetStatus(${i},'washing')">👕 Giặt</button>
+        <button class="om-status-btn${st==='done'?' active-done':''}" onclick="omItemSetStatus(${i},'done')">✅ Xong</button>
+      </div>
+      <button class="om-deliver-btn" style="margin-top:8px" onclick="omItemSetStatus(${i},'delivered')">📦 Giao &amp; Thanh Toán</button>
+
+      <div style="display:flex;gap:6px;margin-top:6px">
+        ${o.order_items.length>1?`<button onclick="omRemSvc(${i})" style="background:#fee2e2;color:#dc2626;border:none;border-radius:7px;padding:6px 14px;font-size:12px;cursor:pointer;font-weight:600;width:100%">🗑 Xóa dịch vụ</button>`:''}
+      </div>
     </div>`;
-
-  const paySection=o.status==='delivered'?`
-    <div class="om-section-label">Phương thức</div>
-    <div class="om-pay-row">
-      <button class="om-pay-btn${o.pay_method==='cash'?' active-cash':''}" id="om-pay-cash" onclick="omSetPay('cash')">💵 Tiền mặt</button>
-      <button class="om-pay-btn${o.pay_method==='transfer'?' active-transfer':''}" id="om-pay-xk" onclick="omSetPay('transfer')">📲 Chuyển khoản</button>
-    </div>
-`:'';
-
-  const deliverBtn=o.status==='done'?`
-    <button class="om-deliver-btn" onclick="closeOrderModal();openDeliverModal(${o.id})">📦 Giao & Thanh toán</button>`:'';
-
-  const undoBtn=(o.status==='done'||o.status==='delivered')?`
-    <button class="om-undo-btn" onclick="omUndo()">↩ Hoàn tác trạng thái</button>`:'';
+  }).join('');
 
   return `
     <div class="om-header">
@@ -921,35 +809,20 @@ function renderOrderModal(o){
           <input class="om-input" type="date" value="${o.date}" onchange="omField('date',this.value)">
         </div>
       </div>
-      <div class="om-field-row">
-        <div class="om-field">
-          <div class="om-label">Ngày giao thực tế</div>
-          <input class="om-input" type="date" value="${o.delivered_date?o.delivered_date.slice(0,10):''}" onchange="omField('delivered_date',this.value)">
-        </div>
-        <div class="om-field">
-          <div class="om-label">Giờ giao</div>
-          <input class="om-input" type="time" value="${o.delivered_date?o.delivered_date.slice(11,16):''}" onchange="omSetDeliverTime(this.value)">
-        </div>
-      </div>
 
       <hr class="om-divider">
-      <div class="om-section-label">Dịch vụ:</div>
+      <div class="om-section-label">Dịch vụ — mỗi dịch vụ có trạng thái &amp; thanh toán riêng:</div>
       ${svcCards}
       <button class="om-add-svc" onclick="omAddSvc()">+ Thêm dịch vụ</button>
 
       <hr class="om-divider">
-      ${statusBtns}
-      ${deliverBtn}
-      ${undoBtn}
-      ${paySection}
-
       <div class="om-field">
-        <div class="om-label">Ghi chú dịch vụ</div>
+        <div class="om-label">Ghi chú đơn</div>
         <textarea class="om-input" rows="2" placeholder="Ghi chú thêm..." onchange="omField('note',this.value)" style="resize:vertical">${o.note||''}</textarea>
       </div>
     </div>
     <div class="om-created">
-      <span>Ngày tạo</span>
+      <span>Tổng đơn: ${fmt(total)} · Đã nhận: ${fmt(received)}</span>
       <span>${fmtDateTime(o.created_at||o.date)}</span>
     </div>
     <div class="om-footer">
@@ -960,32 +833,62 @@ function renderOrderModal(o){
 
 function omField(field,val){
   const o=orders.find(x=>x.id===editOrderId);if(!o)return;
-  if(field==='received') o[field]=Number(val);
-  else o[field]=val;
+  o[field]=val;
 }
-function omSetStatus(status){
+function omRepaintModal(){
   const o=orders.find(x=>x.id===editOrderId);if(!o)return;
-  o.status=status;
-  // Khi chuyển sang "đã giao" → tự điền tổng tiền nếu chưa có
-  if(status==='delivered'&&(!o.received||o.received===0)){
-    o.received=orderTotal(o);
-  }
-  // Khi hoàn tác về trạng thái khác → reset received
-  if(status==='done'||status==='washing'){
-    o.received=0;o.delivered_date=null;
-  }
   document.getElementById('order-modal-inner').innerHTML=renderOrderModal(o);
 }
-function omSetPay(pay){
+
+/* ── Trạng thái/thanh toán THEO TỪNG DỊCH VỤ ── */
+function omItemSetStatus(i,status){
   const o=orders.find(x=>x.id===editOrderId);if(!o)return;
-  o.pay_method=pay;
-  document.getElementById('order-modal-inner').innerHTML=renderOrderModal(o);
+  const sv=o.order_items[i];
+  sv.status=status;
+  if(status==='delivered'){
+    if(!sv.received||sv.received===0) sv.received=Number(sv.price||0);
+    if(!sv.delivered_date){
+      const now=new Date(); now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
+      sv.delivered_date=now.toISOString().slice(0,16);
+    }
+    if(!sv.pay_method) sv.pay_method='cash';
+  }
+  if(status==='washing'||status==='done'){
+    sv.received=0; sv.delivered_date=null;
+  }
+  omRepaintModal();
 }
-function omSetDeliverTime(time){
+function omItemSetPay(i,pay){
   const o=orders.find(x=>x.id===editOrderId);if(!o)return;
-  const date=o.delivered_date?o.delivered_date.slice(0,10):o.date;
-  o.delivered_date=date+'T'+time+':00';
+  o.order_items[i].pay_method=pay;
+  omRepaintModal();
 }
+function omItemSetDeliverDate(i,date){
+  const o=orders.find(x=>x.id===editOrderId);if(!o)return;
+  const sv=o.order_items[i];
+  const time=sv.delivered_date?sv.delivered_date.slice(11,16):'00:00';
+  sv.delivered_date=date+'T'+time+':00';
+}
+function omItemSetDeliverTime(i,time){
+  const o=orders.find(x=>x.id===editOrderId);if(!o)return;
+  const sv=o.order_items[i];
+  const date=sv.delivered_date?sv.delivered_date.slice(0,10):o.date;
+  sv.delivered_date=date+'T'+time+':00';
+}
+function omItemField(i,field,val){
+  const o=orders.find(x=>x.id===editOrderId);if(!o)return;
+  o.order_items[i][field]=field==='received'?Number(val):val;
+}
+function omItemUndo(i){
+  const o=orders.find(x=>x.id===editOrderId);if(!o)return;
+  const sv=o.order_items[i];
+  const prev={done:'washing',delivered:'done'}[itemStatus(sv)];
+  if(!prev)return;
+  sv.status=prev;
+  if(prev==='done'){sv.delivered_date=null;sv.received=0;}
+  omRepaintModal();
+}
+
 function omSvcChange(i,val){
   const o=orders.find(x=>x.id===editOrderId);if(!o)return;
   o.order_items[i].svc_name=val;
@@ -994,7 +897,7 @@ function omSvcChange(i,val){
     const p=computePrice(cat,o.order_items[i].qty);
     if(p){o.order_items[i].price=p;}
   }
-  document.getElementById('order-modal-inner').innerHTML=renderOrderModal(o);
+  omRepaintModal();
 }
 function omQtyChange(i,qty){
   const o=orders.find(x=>x.id===editOrderId);if(!o)return;
@@ -1004,10 +907,7 @@ function omQtyChange(i,qty){
     const p=computePrice(cat,qty);
     if(p){
       o.order_items[i].price=p;
-      const el=document.getElementById('om-price-'+i);
-      if(el) el.value=p;
-      // update badge
-      document.getElementById('order-modal-inner').innerHTML=renderOrderModal(o);
+      omRepaintModal();
     }
   }
 }
@@ -1017,55 +917,64 @@ function omPriceChange(i,val){
 }
 function omAddSvc(){
   const o=orders.find(x=>x.id===editOrderId);if(!o)return;
-  o.order_items.push({svc_name:'',qty:'',price:0,order_id:o.id});
-  document.getElementById('order-modal-inner').innerHTML=renderOrderModal(o);
+  o.order_items.push({svc_name:'',qty:'',price:0,order_id:o.id,status:'washing',received:0,pay_method:'cash',delivered_date:null});
+  omRepaintModal();
 }
 function omRemSvc(i){
   const o=orders.find(x=>x.id===editOrderId);if(!o||o.order_items.length<=1)return;
   o.order_items.splice(i,1);
-  document.getElementById('order-modal-inner').innerHTML=renderOrderModal(o);
+  omRepaintModal();
 }
-function omUndo(){
-  const o=orders.find(x=>x.id===editOrderId);if(!o)return;
-  const prev={done:'washing',delivered:'done'}[o.status];
-  if(!prev)return;
-  if(!confirm('Hoàn tác về "'+STATUS[prev].label+'"?'))return;
-  o.status=prev;
-  if(prev==='done'){o.delivered_date=null;o.received=0;o.pay_method='cash';}
-  document.getElementById('order-modal-inner').innerHTML=renderOrderModal(o);
-}
+
 async function omSave(){
   const o=orders.find(x=>x.id===editOrderId);if(!o)return;
-  // Cảnh báo nếu đã giao nhưng chưa nhập ngày giao
-  if(o.status==='delivered'&&!o.delivered_date){
-    // Highlight trường ngày giao
-    const dtInput=document.querySelector('#order-modal-inner input[type="date"]:nth-of-type(2)');
+  // Cảnh báo nếu có dịch vụ đã giao nhưng chưa nhập ngày giao
+  const missingDateIdx=(o.order_items||[]).findIndex(sv=>itemStatus(sv)==='delivered'&&!sv.delivered_date);
+  if(missingDateIdx>=0){
+    const dtInput=document.getElementById('om-svc-date-'+missingDateIdx);
     if(dtInput){
       dtInput.style.border='2px solid #dc2626';
       dtInput.style.background='#fff1f2';
+      dtInput.scrollIntoView({behavior:'smooth',block:'center'});
       dtInput.focus();
       setTimeout(()=>{dtInput.style.border='';dtInput.style.background='';},3000);
     }
-    toast('⚠️ Vui lòng nhập ngày giao trước khi lưu!','err');
+    toast('⚠️ Vui lòng nhập ngày giao cho dịch vụ trước khi lưu!','err');
     return;
   }
-  // Nếu đã giao mà chưa có received → tự điền tổng tiền
-  if(o.status==='delivered'&&(!o.received||o.received===0)){
-    o.received=orderTotal(o);
-  }
+  // Tự điền received nếu đã giao mà chưa nhập tiền
+  (o.order_items||[]).forEach(sv=>{
+    if(itemStatus(sv)==='delivered'&&(!sv.received||sv.received===0)){
+      sv.received=Number(sv.price||0);
+    }
+  });
+
+  const overallSt=orderOverallStatus(o);
+  const totalReceived=orderReceived(o);
+  // delivered_date cấp đơn = ngày giao mới nhất trong các dịch vụ đã giao (để tương thích thống kê cũ)
+  const deliveredDates=(o.order_items||[]).filter(sv=>sv.delivered_date).map(sv=>sv.delivered_date).sort();
+  const latestDeliverDate=deliveredDates.length?deliveredDates[deliveredDates.length-1]:null;
+
   const{error}=await db.from('orders').update({
-    customer_name:o.customer_name,phone:o.phone,date:o.date,
-    note:o.note,pay_method:o.pay_method,received:o.received,
-    status:o.status,delivered_date:o.delivered_date
+    customer_name:o.customer_name, phone:o.phone, date:o.date,
+    note:o.note, received:totalReceived,
+    status:overallSt==='mixed'?'done':overallSt,
+    delivered_date:latestDeliverDate
   }).eq('id',o.id);
   if(error){toast('Lỗi lưu: '+error.message,'err');return;}
+
   await db.from('order_items').delete().eq('order_id',o.id);
-  const items=o.order_items.filter(x=>x.svc_name).map(x=>({order_id:o.id,svc_name:x.svc_name,qty:x.qty,price:x.price}));
+  const items=o.order_items.filter(x=>x.svc_name).map(x=>({
+    order_id:o.id, svc_name:x.svc_name, qty:x.qty, price:x.price,
+    status:itemStatus(x), received:x.received||0,
+    pay_method:x.pay_method||'cash', delivered_date:x.delivered_date||null
+  }));
   if(items.length) await db.from('order_items').insert(items);
+
   await logAction('update_order',o.order_code||o.customer_name,`Lưu bởi ${currentUser.name}`);
   toast('✅ Đã lưu đơn của '+o.customer_name);
   closeOrderModal();
-  renderList();updateTopStats();
+  await loadOrders();
 }
 async function omDelete(){
   const o=orders.find(x=>x.id===editOrderId);if(!o)return;
@@ -1075,107 +984,6 @@ async function omDelete(){
   closeOrderModal();renderList();updateTopStats();toast('Đã xóa đơn');
 }
 
-function epRepaint(id){const o=orders.find(x=>x.id===id);if(!o)return;const ep=document.getElementById('ep-'+id);if(ep)ep.innerHTML=renderEditPanel(o);updateTopStats();}
-
-async function saveOrder(id){
-  const o=orders.find(x=>x.id===id);if(!o)return;
-  const{error}=await db.from('orders').update({
-    customer_name:o.customer_name,phone:o.phone,date:o.date,
-    note:o.note,pay_method:o.pay_method,received:o.received,
-    status:o.status,delivered_date:o.delivered_date
-  }).eq('id',id);
-  if(error){toast('Lỗi lưu: '+error.message,'err');return;}
-  await db.from('order_items').delete().eq('order_id',id);
-  const items=o.order_items.filter(x=>x.svc_name).map(x=>({order_id:id,svc_name:x.svc_name,qty:x.qty,price:x.price}));
-  if(items.length) await db.from('order_items').insert(items);
-  await logAction('update_order',o.order_code,`Lưu bởi ${currentUser.name}`);
-  toast('Đã lưu đơn '+o.order_code);
-  renderList();updateTopStats();
-}
-
-async function markDone(id){
-  const o=orders.find(x=>x.id===id);if(!o)return;
-  o.status='done';
-  await db.from('orders').update({status:'done'}).eq('id',id);
-  await logAction('update_order',o.order_code,'Giặt xong');
-  toast('✅ Đánh dấu giặt xong!');
-  renderList();updateTopStats();
-}
-
-async function undoStatus(id){
-  const o=orders.find(x=>x.id===id);if(!o)return;
-  const prev={done:'washing',delivered:'done'}[o.status];
-  if(!prev){toast('Không thể hoàn tác','err');return;}
-  const label={washing:'Đang giặt',done:'Giặt xong'}[prev];
-  if(!confirm(`Hoàn tác về "${label}"?`))return;
-  const update={status:prev};
-  if(prev==='done') update.delivered_date=null, update.received=0, update.pay_method='cash';
-  o.status=prev;
-  if(prev==='done'){o.delivered_date=null;o.received=0;o.pay_method='cash';}
-  await db.from('orders').update(update).eq('id',id);
-  await logAction('update_order',o.order_code,`Hoàn tác → ${label}`);
-  toast('↩ Đã hoàn tác về "'+label+'"');
-  expandedId=id;
-  renderList();updateTopStats();
-}
-
-async function delOrder(id){
-  const o=orders.find(x=>x.id===id);
-  if(!confirm(`Xóa đơn ${o?.order_code}?`))return;
-  await db.from('orders').delete().eq('id',id);
-  orders=orders.filter(x=>x.id!==id);expandedId=null;
-  renderList();updateTopStats();toast('Đã xóa đơn');
-}
-
-/* ══ MODAL GIAO & THANH TOÁN ══ */
-function openDeliverModal(id){
-  const o=orders.find(x=>x.id===id);if(!o)return;
-  deliverOrderId=id;
-  const total=orderTotal(o);
-  document.getElementById('modal-order-info').textContent=`${o.order_code} · ${o.customer_name}`;
-  document.getElementById('modal-total').textContent='Tổng: '+fmt(total);
-  // default: bây giờ
-  const now=new Date();
-  now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
-  document.getElementById('modal-deliver-dt').value=now.toISOString().slice(0,16);
-  document.getElementById('modal-received').value=total||'';
-  setModalPay('cash');
-  document.getElementById('deliver-modal').style.display='flex';
-}
-function closeDeliverModal(){document.getElementById('deliver-modal').style.display='none';deliverOrderId=null;}
-function setModalPay(p){
-  modalPayMethod=p;
-  document.getElementById('modal-pay-cash').className='pay-opt'+(p==='cash'?' active-cash':'');
-  document.getElementById('modal-pay-xk').className='pay-opt'+(p==='transfer'?' active-transfer':'');
-}
-async function confirmDeliver(){
-  const o=orders.find(x=>x.id===deliverOrderId);if(!o)return;
-  const deliverDt=document.getElementById('modal-deliver-dt').value;
-  const receivedRaw=document.getElementById('modal-received').value;
-  const received=Number(receivedRaw);
-  // Validate
-  let hasErr=false;
-  const dtErr=document.getElementById('modal-dt-err');
-  const recErr=document.getElementById('modal-received-err');
-  dtErr.style.display='none'; recErr.style.display='none';
-  if(!deliverDt){dtErr.style.display='block';hasErr=true;}
-  if(!receivedRaw&&receivedRaw!=='0'){recErr.style.display='block';hasErr=true;}
-  if(hasErr) return;
-  const total=orderTotal(o);
-  o.status='delivered';
-  o.delivered_date=deliverDt;
-  o.received=received;
-  o.pay_method=modalPayMethod;
-  await db.from('orders').update({
-    status:'delivered', delivered_date:deliverDt,
-    received, pay_method:modalPayMethod
-  }).eq('id',deliverOrderId);
-  await logAction('update_order',o.order_code,`Giao hàng — ${fmt(received)} — ${modalPayMethod==='cash'?'Tiền mặt':'Chuyển khoản'}`);
-  closeDeliverModal();
-  expandedId=null;
-  toast('📦 Đã giao & thu tiền thành công!');
-  renderList();updateTopStats();
-}
 
 /* ══ TẠO ĐƠN ══ */
 function initForm(){
@@ -1224,7 +1032,7 @@ async function submitOrder(){
   }).select().single();
   if(error){toast('Lỗi tạo đơn: '+error.message,'err');return;}
   // insert items (chưa có kg/giá)
-  const items=validSvcs.map(r=>({order_id:order.id,svc_name:r.svc,qty:null,price:0}));
+  const items=validSvcs.map(r=>({order_id:order.id,svc_name:r.svc,qty:null,price:0,status:'washing',received:0,pay_method:'cash'}));
   await db.from('order_items').insert(items);
   await logAction('create_order',order.order_code,`Tạo bởi ${currentUser.name}`);
   toast('✨ Tạo đơn '+order.order_code+' thành công!');
@@ -1251,20 +1059,25 @@ function renderCustomers(){
 /* ══ IN HÓA ĐƠN ══ */
 function printInvoice(id){
   const o=orders.find(x=>x.id===id);if(!o)return;
-  const total=orderTotal(o),pending=total-Number(o.received||0);
+  const total=orderTotal(o), received=orderReceived(o), pending=total-received;
+  const deliveredDates=(o.order_items||[]).filter(sv=>sv.delivered_date).map(sv=>sv.delivered_date).sort();
+  const latestDate=deliveredDates.length?deliveredDates[deliveredDates.length-1]:null;
   document.getElementById('print-area').innerHTML=`
     <div class="hd-title">🧺 TIỆM GIẶT CHERRY</div>
     <div class="hd-sub">Cảm ơn quý khách!</div>
     <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:10px">
       <div><strong>${o.customer_name}</strong>${o.phone?' · '+o.phone:''}</div>
-      <div>Gửi: ${fmtDate(o.date)}${o.delivered_date?'<br>Nhận: '+fmtDateTime(o.delivered_date):''}</div>
+      <div>Gửi: ${fmtDate(o.date)}${latestDate?'<br>Nhận: '+fmtDateTime(latestDate):''}</div>
     </div>
     <table class="hd-table">
-      <thead><tr><th>Dịch vụ</th><th>Khối lượng</th><th style="text-align:right">Giá</th></tr></thead>
-      <tbody>${(o.order_items||[]).map(sv=>`<tr><td>${sv.svc_name}</td><td>${sv.qty||'—'}</td><td style="text-align:right">${fmt(sv.price)}</td></tr>`).join('')}</tbody>
+      <thead><tr><th>Dịch vụ</th><th>Khối lượng</th><th>Trạng thái</th><th style="text-align:right">Giá</th></tr></thead>
+      <tbody>${(o.order_items||[]).map(sv=>{
+        const sb=ITEM_ST_BADGE[itemStatus(sv)]||ITEM_ST_BADGE.washing;
+        return `<tr><td>${sv.svc_name}</td><td>${sv.qty||'—'}</td><td>${sb.label}</td><td style="text-align:right">${fmt(sv.price)}</td></tr>`;
+      }).join('')}</tbody>
     </table>
     <div class="hd-total">Tổng: ${fmt(total)}</div>
-    <div style="text-align:right;font-size:12px;margin-top:3px">Đã nhận: ${fmt(o.received||0)} · PT: ${o.pay_method==='transfer'?'Chuyển khoản':'Tiền mặt'}${pending>0?' · <span style="color:#dc2626">Còn: '+fmt(pending)+'</span>':' ✅'}</div>
+    <div style="text-align:right;font-size:12px;margin-top:3px">Đã nhận: ${fmt(received)}${pending>0?' · <span style="color:#dc2626">Còn: '+fmt(pending)+'</span>':' ✅'}</div>
     <div class="hd-footer">Hẹn gặp lại! 🧺</div>
     <div style="text-align:center;margin-top:14px">
       <button onclick="window.print()" style="padding:8px 18px;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px">🖨️ In</button>
@@ -1277,11 +1090,11 @@ function printInvoice(id){
 function exportCSV(){
   const{from,to}=getStatRange();
   const inR=orders.filter(o=>o.date>=from&&o.date<=to);
-  let csv='Mã đơn,Khách,SĐT,Ngày gửi,Ngày giao,Dịch vụ,Kg/SL,Giá,Tổng,Đã nhận,Trạng thái,Thanh toán\n';
+  let csv='Khách,SĐT,Ngày gửi,Ngày giao,Dịch vụ,Kg/SL,Giá,Trạng thái,Đã nhận,Thanh toán,Ghi chú\n';
   inR.forEach(o=>{
-    const total=orderTotal(o);
     (o.order_items||[]).forEach((sv,i)=>{
-      csv+=`${i===0?o.order_code:''},${i===0?o.customer_name:''},${i===0?(o.phone||''):''},${i===0?o.date:''},${i===0?(o.delivered_date?.slice(0,10)||''):''},${sv.svc_name},${sv.qty||''},${sv.price},${i===0?total:''},${i===0?(o.received||0):''},${i===0?STATUS[o.status].label:''},${i===0?(o.pay_method==='transfer'?'Chuyển khoản':'Tiền mặt'):''}\n`;
+      const sb=ITEM_ST_BADGE[itemStatus(sv)]||ITEM_ST_BADGE.washing;
+      csv+=`${i===0?o.customer_name:''},${i===0?(o.phone||''):''},${i===0?o.date:''},${sv.delivered_date?sv.delivered_date.slice(0,10):''},${sv.svc_name},${sv.qty||''},${sv.price},${sb.label},${sv.received||0},${sv.pay_method==='transfer'?'Chuyển khoản':'Tiền mặt'},${i===0?(o.note||''):''}\n`;
     });
   });
   const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
@@ -1381,18 +1194,20 @@ function getDays(from,to){const days=[];let c=new Date(from);const e=new Date(to
 
 function renderStats(){
   const{from,to}=getStatRange();
-  // Thống kê dựa trên ngày GIAO (delivered_date), không phải ngày tạo
-  const inR=orders.filter(o=>{
-    if(o.status!=='delivered') return false;
-    const dd=(o.delivered_date||o.date||'').slice(0,10);
+  const allItems=orders.flatMap(o=>(o.order_items||[]).map(sv=>({...sv,_order:o})));
+
+  // Thống kê dựa trên ngày GIAO của TỪNG DỊCH VỤ
+  const inR=allItems.filter(sv=>{
+    if(itemStatus(sv)!=='delivered') return false;
+    const dd=(sv.delivered_date||sv._order.date||'').slice(0,10);
     return dd>=from&&dd<=to;
   });
-  const total=inR.reduce((s,o)=>s+Number(o.received||0),0);
-  const cash=inR.filter(o=>o.pay_method==='cash').reduce((s,o)=>s+Number(o.received||0),0);
-  const xk=inR.filter(o=>o.pay_method==='transfer').reduce((s,o)=>s+Number(o.received||0),0);
-  // chưa thu = đơn chưa delivered trong khoảng ngày tạo
-  const undelivered=orders.filter(o=>o.status!=='delivered'&&o.date>=from&&o.date<=to);
-  const pending=undelivered.reduce((s,o)=>s+Math.max(orderTotal(o)-Number(o.received||0),0),0);
+  const total=inR.reduce((s,sv)=>s+Number(sv.received||0),0);
+  const cash=inR.filter(sv=>sv.pay_method==='cash').reduce((s,sv)=>s+Number(sv.received||0),0);
+  const xk=inR.filter(sv=>sv.pay_method==='transfer').reduce((s,sv)=>s+Number(sv.received||0),0);
+  // chưa thu = dịch vụ chưa delivered, tạo trong khoảng ngày
+  const undeliveredItems=allItems.filter(sv=>itemStatus(sv)!=='delivered'&&sv._order.date>=from&&sv._order.date<=to);
+  const pending=undeliveredItems.reduce((s,sv)=>s+Number(sv.price||0),0);
   document.getElementById('st-total').textContent=fmt(total);
   document.getElementById('st-cash').textContent=fmt(cash);
   document.getElementById('st-xk').textContent=fmt(xk);
@@ -1402,11 +1217,11 @@ function renderStats(){
   const days=getDays(from,to),showM=days.length>45;
   let cd;
   if(showM){
-    const bm={};inR.forEach(o=>{const m=(o.delivered_date||o.date).slice(0,7);bm[m]=(bm[m]||0)+Number(o.received||0);});
+    const bm={};inR.forEach(sv=>{const m=(sv.delivered_date||sv._order.date).slice(0,7);bm[m]=(bm[m]||0)+Number(sv.received||0);});
     cd=Object.entries(bm).sort((a,b)=>a[0]<b[0]?-1:1).map(([k,v])=>({label:k.slice(5)+'/'+k.slice(2,4),val:v}));
     document.getElementById('chart-lbl').textContent='Doanh thu theo tháng';
   } else {
-    cd=days.map(d=>({label:d.split('-')[2]+'/'+d.split('-')[1],val:inR.filter(o=>(o.delivered_date||o.date).slice(0,10)===d).reduce((s,o)=>s+Number(o.received||0),0),isToday:d===today()}));
+    cd=days.map(d=>({label:d.split('-')[2]+'/'+d.split('-')[1],val:inR.filter(sv=>(sv.delivered_date||sv._order.date).slice(0,10)===d).reduce((s,sv)=>s+Number(sv.received||0),0),isToday:d===today()}));
     document.getElementById('chart-lbl').textContent='Doanh thu theo ngày giao';
   }
   const maxV=Math.max(...cd.map(c=>c.val),1);
@@ -1419,19 +1234,20 @@ function renderStats(){
   ])].filter(d=>d>=from&&d<=to).sort((a,b)=>b>a?1:-1);
 
   const tr=allDaysInRange.map(d=>{
-    // Đơn TẠO trong ngày
-    const created=orders.filter(o=>o.date===d);
-    // Đơn GIAO trong ngày (dùng delivered_date, fallback về date nếu null)
-    const delivered=orders.filter(o=>o.status==='delivered'&&(o.delivered_date||o.date).slice(0,10)===d);
-    // Đơn chưa giao nhưng đã tạo trong ngày (washing hoặc done)
-    const pending=created.filter(o=>o.status!=='delivered');
-    if(!created.length&&!delivered.length) return null;
-    const dt=delivered.reduce((s,o)=>s+orderTotal(o),0);
-    const dc=delivered.filter(o=>o.pay_method==='cash').reduce((s,o)=>s+Number(o.received||0),0);
-    const dx=delivered.filter(o=>o.pay_method==='transfer').reduce((s,o)=>s+Number(o.received||0),0);
-    const unpaid=delivered.reduce((s,o)=>s+Math.max(orderTotal(o)-Number(o.received||0),0),0);
-    const pendingTotal=pending.reduce((s,o)=>s+orderTotal(o),0);
-    return{d,createdCnt:created.length,deliveredCnt:delivered.length,pendingCnt:pending.length,dt,dc,dx,unpaid,pendingTotal};
+    // Đơn TẠO trong ngày (đếm theo orders, không phải items)
+    const createdOrders=orders.filter(o=>o.date===d);
+    const createdItemsOfDay=allItems.filter(sv=>sv._order.date===d);
+    // Dịch vụ GIAO trong ngày (dùng delivered_date)
+    const deliveredItems=allItems.filter(sv=>itemStatus(sv)==='delivered'&&(sv.delivered_date||sv._order.date).slice(0,10)===d);
+    // Dịch vụ chưa giao nhưng tạo trong ngày
+    const pendingItems=createdItemsOfDay.filter(sv=>itemStatus(sv)!=='delivered');
+    if(!createdOrders.length&&!deliveredItems.length) return null;
+    const dt=deliveredItems.reduce((s,sv)=>s+Number(sv.price||0),0);
+    const dc=deliveredItems.filter(sv=>sv.pay_method==='cash').reduce((s,sv)=>s+Number(sv.received||0),0);
+    const dx=deliveredItems.filter(sv=>sv.pay_method==='transfer').reduce((s,sv)=>s+Number(sv.received||0),0);
+    const unpaid=deliveredItems.reduce((s,sv)=>s+Math.max(Number(sv.price||0)-Number(sv.received||0),0),0);
+    const pendingTotal=pendingItems.reduce((s,sv)=>s+Number(sv.price||0),0);
+    return{d,createdCnt:createdOrders.length,deliveredCnt:deliveredItems.length,pendingCnt:pendingItems.length,dt,dc,dx,unpaid,pendingTotal};
   }).filter(Boolean);
 
   document.getElementById('day-tbody').innerHTML=tr.length
@@ -1441,8 +1257,8 @@ function renderStats(){
         <div style="padding:10px 16px;background:#f8fafc;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between">
           <span style="font-size:13px;font-weight:700;color:#1e293b">${new Date(r.d).toLocaleDateString('vi-VN')}</span>
           <div style="display:flex;gap:8px;align-items:center">
-            <span style="font-size:11px;background:#dbeafe;color:#1d4ed8;border-radius:99px;padding:2px 8px;font-weight:600">📝 ${r.createdCnt} tạo</span>
-            <span style="font-size:11px;background:#dcfce7;color:#16a34a;border-radius:99px;padding:2px 8px;font-weight:600">📦 ${r.deliveredCnt} giao</span>
+            <span style="font-size:11px;background:#dbeafe;color:#1d4ed8;border-radius:99px;padding:2px 8px;font-weight:600">📝 ${r.createdCnt} đơn tạo</span>
+            <span style="font-size:11px;background:#dcfce7;color:#16a34a;border-radius:99px;padding:2px 8px;font-weight:600">📦 ${r.deliveredCnt} dịch vụ giao</span>
             ${r.pendingCnt>0?`<span style="font-size:11px;background:#fef9c3;color:#92400e;border-radius:99px;padding:2px 8px;font-weight:600">⏳ ${r.pendingCnt} chờ</span>`:''}
           </div>
         </div>
@@ -1461,7 +1277,7 @@ function renderStats(){
             <span style="font-size:13px;font-weight:600;color:#f59e0b">${fmt(r.unpaid)}</span>
           </div>`:''}
           ${r.pendingCnt>0?`<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 16px;border-bottom:1px solid #f8f8f8">
-            <span style="font-size:13px;color:#374151">🧺 Chưa giao (${r.pendingCnt} đơn)</span>
+            <span style="font-size:13px;color:#374151">🧺 Chưa giao (${r.pendingCnt} dịch vụ)</span>
             <span style="font-size:13px;font-weight:600;color:#94a3b8">${fmt(r.pendingTotal)}</span>
           </div>`:''}
           <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#f8fafc">
@@ -1472,7 +1288,7 @@ function renderStats(){
       </div>`).join('')
     : '<div style="text-align:center;color:#aaa;padding:20px;font-size:13px">Không có dữ liệu</div>';
 
-  const sR={};inR.forEach(o=>(o.order_items||[]).forEach(sv=>{sR[sv.svc_name]=(sR[sv.svc_name]||0)+Number(sv.price||0);}));
+  const sR={};inR.forEach(sv=>{sR[sv.svc_name]=(sR[sv.svc_name]||0)+Number(sv.price||0);});
   const sT=Object.values(sR).reduce((a,b)=>a+b,0)||1;
   const colors=['#3b82f6','#16a34a','#d97706','#dc2626','#7c3aed','#0891b2','#db2777'];
   document.getElementById('svc-breakdown').innerHTML=Object.entries(sR).sort((a,b)=>b[1]-a[1]).map(([n,v],i)=>{const pct=Math.round(v/sT*100);return`<div class="svc-bar-row"><div class="svc-bar-name"><span>${n}</span><span style="color:#888">${pct}% · ${fmt(v)}</span></div><div class="svc-bar-track"><div class="svc-bar-fill" style="width:${pct}%;background:${colors[i%7]}"></div></div></div>`;}).join('')||'<div class="empty">Không có dữ liệu</div>';
