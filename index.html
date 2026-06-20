@@ -701,6 +701,9 @@ function renderList(){
         <span class="oc-status">${st.icon} ${st.label}</span>
         <span style="font-size:13px;color:#bbb;margin-left:3px">›</span>
       </div>
+      ${o.note?`<div style="padding:6px 14px;background:#fffbeb;border-bottom:1px solid #fef3c7;font-size:12px;color:#92400e;display:flex;align-items:start;gap:5px">
+        <span>📌</span><span><strong>Ghi chú:</strong> ${o.note}</span>
+      </div>`:''}
       ${(o.order_items||[]).map(sv=>`<div class="or">
         <div class="or-svc">${sv.svc_name}${sv.qty?`<div class="or-detail">— ${sv.qty}</div>`:''}</div>
         <div class="or-price">${sv.price?fmt(sv.price):'—'}</div>
