@@ -248,6 +248,10 @@ hr.div{border:none;border-top:1px solid #f0f0f0;margin:11px 0}
     <input type="text" id="login-name" placeholder="VD: Chị Lan">
     <label>Mật khẩu tiệm</label>
     <input type="password" id="login-pw" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    <label style="display:flex;align-items:center;gap:7px;font-weight:500;font-size:13px;color:#555;margin-bottom:14px;cursor:pointer">
+      <input type="checkbox" id="login-remember" style="width:15px;height:15px;cursor:pointer" checked>
+      Nhớ đăng nhập trên thiết bị này
+    </label>
     <button class="btn-login" onclick="doLogin()">Vào hệ thống →</button>
     <div class="login-err" id="login-err"></div>
   </div>
@@ -492,13 +496,29 @@ function computePrice(catItem,kgOrQty){
 function doLogin(){
   const name=document.getElementById('login-name').value.trim();
   const pw=document.getElementById('login-pw').value;
+  const remember=document.getElementById('login-remember').checked;
   document.getElementById('login-err').textContent='';
   if(!name){document.getElementById('login-err').textContent='Nhập tên của bạn';return;}
   if(pw!==SHOP_PASSWORD){document.getElementById('login-err').textContent='Mật khẩu không đúng';return;}
-  sessionStorage.setItem('cherry_user',name);
+  // Nhớ đăng nhập → lưu vào localStorage (giữ qua nhiều phiên/đóng trình duyệt)
+  // Không nhớ → chỉ lưu sessionStorage (mất khi đóng tab)
+  if(remember){
+    localStorage.setItem('cherry_user', name);
+    sessionStorage.removeItem('cherry_user');
+  } else {
+    sessionStorage.setItem('cherry_user', name);
+    localStorage.removeItem('cherry_user');
+  }
   startApp(name);
 }
-function doLogout(){sessionStorage.removeItem('cherry_user');document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('login-pw').value='';document.getElementById('login-name').value='';}
+function doLogout(){
+  sessionStorage.removeItem('cherry_user');
+  localStorage.removeItem('cherry_user');
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('login-pw').value='';
+  document.getElementById('login-name').value='';
+}
 async function startApp(name){
   currentUser={name};
   document.getElementById('login-screen').style.display='none';
@@ -506,7 +526,7 @@ async function startApp(name){
   document.getElementById('user-name').textContent=name;
   await Promise.all([loadCatalog(),loadOrders(),loadCustomers()]);
 }
-const _su=sessionStorage.getItem('cherry_user');
+const _su=sessionStorage.getItem('cherry_user')||localStorage.getItem('cherry_user');
 if(_su) startApp(_su);
 
 /* ══ AUTO-PING: giữ Supabase luôn active, tránh bị pause ══
