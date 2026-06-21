@@ -396,6 +396,23 @@ hr.div{border:none;border-top:1px solid #f0f0f0;margin:11px 0}
   <div class="order-modal" id="order-modal-inner"></div>
 </div>
 
+<!-- ADMIN PASSWORD MODAL -->
+<div class="modal-overlay" id="admin-modal" style="display:none" onclick="if(event.target===this)closeAdminModal()">
+  <div class="modal-box" style="width:340px">
+    <div class="modal-title">🔒 Xác nhận quyền truy cập</div>
+    <div style="font-size:13px;color:#666;margin-bottom:16px">Tab này chỉ dành cho quản lý. Nhập mật khẩu admin để tiếp tục.</div>
+    <div class="fg">
+      <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">Mật khẩu admin</label>
+      <input type="password" id="admin-pw-input" placeholder="••••••••" style="width:100%;padding:10px 12px;border:1.5px solid #d1d5db;border-radius:9px;font-size:14px;outline:none" onkeydown="if(event.key==='Enter')confirmAdmin()">
+      <div id="admin-pw-err" style="color:#dc2626;font-size:12px;margin-top:5px;display:none">⚠ Mật khẩu không đúng</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn-cancel-modal" onclick="closeAdminModal()">Huỷ</button>
+      <button class="btn-confirm" onclick="confirmAdmin()">Xác nhận</button>
+    </div>
+  </div>
+</div>
+
 <div class="print-area" id="print-area"></div>
 <div class="toast" id="toast"></div>
 
