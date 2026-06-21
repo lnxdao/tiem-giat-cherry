@@ -462,11 +462,26 @@ function computePrice(catItem,kgOrQty){
     const tiers=catItem.tiers||[];
     for(const tier of tiers){
       const lbl=tier.label.toLowerCase();
-      if(lbl.includes('từ')) return Math.round(tierEffective(tier)*num);
+      // Bậc "từ X kg" (mỗi kg) — luôn ở cuối, chỉ áp dụng nếu vượt ngưỡng X
+      if(lbl.includes('từ')){
+        const fromMatch=lbl.match(/([\d.]+)/);
+        const fromVal=fromMatch?parseFloat(fromMatch[1]):0;
+        if(num>fromVal) return Math.round(tierEffective(tier)*num);
+        continue;
+      }
+      // Bậc "< X kg" hoặc "dưới X kg" — giá cố định, không nhân theo kg
+      if(lbl.includes('<')||lbl.includes('dưới')){
+        const ltMatch=lbl.match(/([\d.]+)/);
+        const ltVal=ltMatch?parseFloat(ltMatch[1]):0;
+        if(num<ltVal) return tierEffective(tier);
+        continue;
+      }
+      // Bậc khoảng "X - Y kg" — giá cố định
       const range=lbl.match(/([\d.]+)\s*[–\-]\s*([\d.]+)/);
       if(range&&num>=parseFloat(range[1])&&num<=parseFloat(range[2])) return tierEffective(tier);
     }
-    return tiers.length?Math.round(tierEffective(tiers[tiers.length-1])*num):0;
+    // Fallback: nếu không khớp bậc nào, dùng bậc đầu tiên có giá cố định (an toàn hơn nhân giá cao nhất)
+    return tiers.length?tierEffective(tiers[0]):0;
   }
   return Math.round(effectivePrice(catItem)*num);
 }
