@@ -456,7 +456,7 @@ async function logAction(action,target,detail){try{await db.from('audit_log').in
 /* ══ TÍNH GIÁ TỪ BẢNG GIÁ ══ */
 function computePrice(catItem,kgOrQty){
   if(!catItem||!kgOrQty) return 0;
-  const num=parseFloat(String(kgOrQty).replace(/[^0-9.]/g,''))||0;
+  const num=parseFloat(String(kgOrQty).replace(',','.').replace(/[^0-9.]/g,''))||0;
   if(!num) return 0;
   if(catItem.type==='tier'){
     const tiers=catItem.tiers||[];
