@@ -668,25 +668,37 @@ function renderDailySummary(){
 }
 
 function filterByDate(date,mode='all'){
+  // Lọc theo ngày GIAO của từng dịch vụ (khớp với cách tính thống kê)
+  // Tập hợp tất cả orders có ít nhất 1 item giao/tạo trong ngày này
+  const allItems=orders.flatMap(o=>(o.order_items||[]).map(sv=>({...sv,_o:o})));
+  const dayDeliveredItems=allItems.filter(sv=>{
+    const dd=(sv.delivered_date||'').slice(0,10);
+    return dd===date && itemStatus(sv)==='delivered';
+  });
+  const dayNotDelivItems=allItems.filter(sv=>{
+    return sv._o.date===date && itemStatus(sv)!=='delivered';
+  });
+  // Nhóm lại theo đơn
+  function groupByOrder(items){
+    const map={};
+    items.forEach(sv=>{
+      const id=sv._o.id;
+      if(!map[id]) map[id]={o:sv._o,items:[]};
+      map[id].items.push(sv);
+    });
+    return Object.values(map);
+  }
+  const cashOrds=groupByOrder(dayDeliveredItems.filter(sv=>sv.pay_method==='cash'));
+  const xkOrds=groupByOrder(dayDeliveredItems.filter(sv=>sv.pay_method==='transfer'));
+  const pendingOrds=groupByOrder(dayDeliveredItems.filter(sv=>Number(sv.received||0)<Number(sv.price||0)));
+  const notDelivOrds=groupByOrder(dayNotDelivItems);
   const dayOrds=orders.filter(o=>o.date===date);
   const title=document.getElementById('day-modal-title');
   const body=document.getElementById('day-modal-body');
-  const modeLabel={all:'Tất cả',cash:'💵 Tiền mặt',transfer:'📲 Chuyển khoản',pending:'⏳ Chưa thu',not_delivered:'🧺 Chưa giao'};
+  const modeLabel={all:'📋 Tất cả',cash:'💵 Tiền mặt',transfer:'📲 Chuyển khoản',pending:'⏳ Chưa thu',not_delivered:'🧺 Chưa giao'};
   title.textContent=(modeLabel[mode]||'📋')+' — ngày '+fmtDate(date);
 
   // Phân loại items theo mode
-  const cashOrds=[], xkOrds=[], pendingOrds=[], notDelivOrds=[];
-  dayOrds.forEach(o=>{
-    const items=o.order_items||[];
-    const cashItems=items.filter(sv=>itemStatus(sv)==='delivered'&&sv.pay_method==='cash');
-    const xkItems=items.filter(sv=>itemStatus(sv)==='delivered'&&sv.pay_method==='transfer');
-    const pendItems=items.filter(sv=>itemStatus(sv)==='delivered'&&Number(sv.received||0)<Number(sv.price||0));
-    const notDelivItems=items.filter(sv=>itemStatus(sv)!=='delivered');
-    if(cashItems.length) cashOrds.push({o,items:cashItems});
-    if(xkItems.length) xkOrds.push({o,items:xkItems});
-    if(pendItems.length) pendingOrds.push({o,items:pendItems});
-    if(notDelivItems.length) notDelivOrds.push({o,items:notDelivItems});
-  });
 
   function renderGroup(list, title, color, icon){
     if(!list.length) return '';
