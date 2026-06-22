@@ -673,38 +673,70 @@ function filterByDate(date){
   const body=document.getElementById('day-modal-body');
   title.textContent='📋 Đơn ngày '+fmtDate(date);
 
-  if(!dayOrds.length){
-    body.innerHTML='<div class="empty">Không có đơn nào</div>';
-  } else {
-    body.innerHTML=dayOrds.map(o=>{
-      const items=o.order_items||[];
-      return `<div style="border:1px solid #f0f0f0;border-radius:10px;margin-bottom:10px;overflow:hidden">
-        <div style="padding:9px 14px;background:#f8fafc;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;cursor:pointer"
-             onclick="closeDayModal();openOrderModal(${o.id})">
-          <div>
-            <span style="font-size:14px;font-weight:700;color:#1e293b">${o.customer_name}</span>
-            ${o.phone?`<span style="font-size:12px;color:#888;margin-left:8px">📞 ${o.phone}</span>`:''}
-          </div>
-          <span style="font-size:12px;color:#3b82f6;font-weight:600">Xem chi tiết ›</span>
+  // Phân loại: tìm các item đã giao theo phương thức thanh toán
+  const cashOrds=[], xkOrds=[], pendingOrds=[];
+  dayOrds.forEach(o=>{
+    const items=o.order_items||[];
+    const cashItems=items.filter(sv=>itemStatus(sv)==='delivered'&&sv.pay_method==='cash');
+    const xkItems=items.filter(sv=>itemStatus(sv)==='delivered'&&sv.pay_method==='transfer');
+    const pendItems=items.filter(sv=>itemStatus(sv)!=='delivered');
+    if(cashItems.length) cashOrds.push({o,items:cashItems});
+    if(xkItems.length) xkOrds.push({o,items:xkItems});
+    if(pendItems.length) pendingOrds.push({o,items:pendItems});
+  });
+
+  function renderGroup(list, title, color, icon){
+    if(!list.length) return '';
+    const total=list.reduce((s,{items})=>s+items.reduce((ss,sv)=>ss+Number(sv.received||0),0),0);
+    const rows=list.map(({o,items})=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:0.5px solid #f5f5f5;cursor:pointer"
+           onclick="closeDayModal();openOrderModal(${o.id})"
+           onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:#1e293b">${o.customer_name}${o.phone?` <span style="font-weight:400;color:#888;font-size:12px">· ${o.phone}</span>`:''}</div>
+          <div style="font-size:11px;color:#888;margin-top:2px">${items.map(sv=>sv.svc_name+(sv.qty?` ${sv.qty}kg`:'')).join(' · ')}</div>
         </div>
-        ${items.map(sv=>{
-          const st=itemStatus(sv);
-          const sb=ITEM_ST_BADGE[st]||ITEM_ST_BADGE.washing;
-          const pm=sv.pay_method==='transfer'?'📲 CK':'💵 TM';
-          return `<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:0.5px solid #f5f5f5">
-            <div style="flex:1;font-size:13px;color:#374151">${sv.svc_name}${sv.qty?` — ${sv.qty} kg`:''}</div>
-            <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;background:${sb.bg};color:${sb.fg}">${sb.label}</span>
-            ${st==='delivered'?`<span style="font-size:12px;color:#888">${pm}</span>`:''}
-            <span style="font-size:13px;font-weight:700;color:#1e293b">${sv.price?fmt(sv.price):'—'}</span>
-          </div>`;
-        }).join('')}
-        <div style="padding:7px 14px;display:flex;justify-content:space-between;font-size:12px">
-          <span style="color:#16a34a;font-weight:600">Đã nhận: ${fmt(orderReceived(o))}</span>
-          <span style="font-weight:700;color:#1e293b">Tổng: ${fmt(orderTotal(o))}</span>
-        </div>
-      </div>`;
-    }).join('');
+        <div style="font-size:13px;font-weight:700;color:${color}">${fmt(items.reduce((s,sv)=>s+Number(sv.received||0),0))}</div>
+        <div style="font-size:11px;color:#94a3b8">›</div>
+      </div>`).join('');
+    return `<div style="margin-bottom:14px;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
+      <div style="padding:9px 14px;background:#f8fafc;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;font-weight:700;color:#555">${icon} ${title}</span>
+        <span style="font-size:13px;font-weight:700;color:${color}">${fmt(total)}</span>
+      </div>
+      ${rows}
+    </div>`;
   }
+
+  function renderPending(list){
+    if(!list.length) return '';
+    const rows=list.map(({o,items})=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:0.5px solid #f5f5f5;cursor:pointer"
+           onclick="closeDayModal();openOrderModal(${o.id})"
+           onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:#1e293b">${o.customer_name}</div>
+          <div style="font-size:11px;color:#888;margin-top:2px">${items.map(sv=>{
+            const sb=ITEM_ST_BADGE[itemStatus(sv)]||ITEM_ST_BADGE.washing;
+            return `<span style="background:${sb.bg};color:${sb.fg};border-radius:99px;padding:1px 6px;font-size:10px;margin-right:3px">${sb.label}</span>${sv.svc_name}`;
+          }).join(' · ')}</div>
+        </div>
+        <div style="font-size:12px;color:#94a3b8">${fmt(items.reduce((s,sv)=>s+Number(sv.price||0),0))}</div>
+        <div style="font-size:11px;color:#94a3b8">›</div>
+      </div>`).join('');
+    return `<div style="margin-bottom:14px;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
+      <div style="padding:9px 14px;background:#f8fafc;border-bottom:1px solid #f0f0f0">
+        <span style="font-size:12px;font-weight:700;color:#555">⏳ Chưa giao (${list.reduce((s,{items})=>s+items.length,0)} dịch vụ)</span>
+      </div>
+      ${rows}
+    </div>`;
+  }
+
+  const content=renderGroup(cashOrds,'Tiền mặt','#16a34a','💵')
+    +renderGroup(xkOrds,'Chuyển khoản','#7c3aed','📲')
+    +renderPending(pendingOrds);
+
+  body.innerHTML=content||'<div class="empty">Không có đơn nào</div>';
   document.getElementById('day-modal').style.display='flex';
 }
 function closeDayModal(){document.getElementById('day-modal').style.display='none';}
