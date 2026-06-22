@@ -445,11 +445,20 @@ function today(offset=0){const d=new Date();d.setDate(d.getDate()+offset);return
 function fmtDate(s){if(!s)return'--';const p=s.split('-');return p[2]+'/'+p[1]+'/'+p[0].slice(2);}
 function fmtDateTime(s){if(!s)return'--';const d=new Date(s);return d.toLocaleDateString('vi-VN')+' '+d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});}
 // Chuyển UTC datetime string → local date string (YYYY-MM-DD) để điền vào input[type=date]
-function utcToLocalDate(s){if(!s)return'';const d=new Date(s);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function utcToLocalDate(s){if(!s)return'';
+  // Nếu đã có offset +07:00 hoặc dạng YYYY-MM-DD thì lấy trực tiếp
+  if(s.includes('+07:00')) return s.slice(0,10);
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const d=new Date(s);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
 // Chuyển UTC datetime string → local time string (HH:MM) để điền vào input[type=time]
-function utcToLocalTime(s){if(!s)return'00:00';const d=new Date(s);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+function utcToLocalTime(s){if(!s)return'00:00';
+  // Nếu đã có offset +07:00 thì lấy giờ trực tiếp
+  if(s.includes('+07:00')) return s.slice(11,16);
+  const d=new Date(s);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
 // Chuyển local date (YYYY-MM-DD) + local time (HH:MM) → ISO string để lưu vào DB
-function localToISO(date,time){if(!date)return null;return new Date(date+'T'+(time||'00:00')).toISOString();}
+function localToISO(date,time){if(!date)return null;return date+'T'+(time||'00:00')+':00+07:00';}
 function orderTotal(o){return(o.order_items||[]).reduce((s,sv)=>s+Number(sv.price||0),0);}
 /* ══ Helpers cho trạng thái/thanh toán THEO TỪNG DỊCH VỤ ══ */
 function itemStatus(sv){return sv.status||'washing';}
@@ -672,7 +681,7 @@ function filterByDate(date,mode='all'){
   // Tập hợp tất cả orders có ít nhất 1 item giao/tạo trong ngày này
   const allItems=orders.flatMap(o=>(o.order_items||[]).map(sv=>({...sv,_o:o})));
   const dayDeliveredItems=allItems.filter(sv=>{
-    const dd=(sv.delivered_date||'').slice(0,10);
+    const dd=utcToLocalDate(sv.delivered_date||'');
     return dd===date && itemStatus(sv)==='delivered';
   });
   const dayNotDelivItems=allItems.filter(sv=>{
@@ -702,8 +711,12 @@ function filterByDate(date,mode='all'){
 
   function renderGroup(list, title, color, icon){
     if(!list.length) return '';
+    // Tổng chỉ tính từ các items thuộc group (đúng phương thức)
     const total=list.reduce((s,{items})=>s+items.reduce((ss,sv)=>ss+Number(sv.received||0),0),0);
-    const rows=list.map(({o,items})=>`
+    const rows=list.map(({o,items})=>{
+      // Tiền của từng đơn chỉ tính items thuộc group này
+      const rowTotal=items.reduce((s,sv)=>s+Number(sv.received||0),0);
+      return `
       <div style="display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:0.5px solid #f5f5f5;cursor:pointer"
            onclick="closeDayModal();openOrderModal(${o.id})"
            onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
@@ -711,9 +724,10 @@ function filterByDate(date,mode='all'){
           <div style="font-size:13px;font-weight:700;color:#1e293b">${o.customer_name}${o.phone?` <span style="font-weight:400;color:#888;font-size:12px">· ${o.phone}</span>`:''}</div>
           <div style="font-size:11px;color:#888;margin-top:2px">${items.map(sv=>sv.svc_name+(sv.qty?` ${sv.qty}kg`:'')).join(' · ')}</div>
         </div>
-        <div style="font-size:13px;font-weight:700;color:${color}">${fmt(items.reduce((s,sv)=>s+Number(sv.received||0),0))}</div>
+        <div style="font-size:13px;font-weight:700;color:${color}">${fmt(rowTotal)}</div>
         <div style="font-size:11px;color:#94a3b8">›</div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
     return `<div style="margin-bottom:14px;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
       <div style="padding:9px 14px;background:#f8fafc;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center">
         <span style="font-size:12px;font-weight:700;color:#555">${icon} ${title}</span>
@@ -1327,7 +1341,7 @@ function renderStats(){
   // Thống kê dựa trên ngày GIAO của TỪNG DỊCH VỤ
   const inR=allItems.filter(sv=>{
     if(itemStatus(sv)!=='delivered') return false;
-    const dd=(sv.delivered_date||sv._order.date||'').slice(0,10);
+    const dd=sv.delivered_date?utcToLocalDate(sv.delivered_date):(sv._order.date||'');
     return dd>=from&&dd<=to;
   });
   const total=inR.reduce((s,sv)=>s+Number(sv.received||0),0);
@@ -1349,7 +1363,7 @@ function renderStats(){
     cd=Object.entries(bm).sort((a,b)=>a[0]<b[0]?-1:1).map(([k,v])=>({label:k.slice(5)+'/'+k.slice(2,4),val:v}));
     document.getElementById('chart-lbl').textContent='Doanh thu theo tháng';
   } else {
-    cd=days.map(d=>({label:d.split('-')[2]+'/'+d.split('-')[1],val:inR.filter(sv=>(sv.delivered_date||sv._order.date).slice(0,10)===d).reduce((s,sv)=>s+Number(sv.received||0),0),isToday:d===today()}));
+    cd=days.map(d=>({label:d.split('-')[2]+'/'+d.split('-')[1],val:inR.filter(sv=>(sv.delivered_date?utcToLocalDate(sv.delivered_date):sv._order.date)===d).reduce((s,sv)=>s+Number(sv.received||0),0),isToday:d===today()}));
     document.getElementById('chart-lbl').textContent='Doanh thu theo ngày giao';
   }
   const maxV=Math.max(...cd.map(c=>c.val),1);
@@ -1366,7 +1380,7 @@ function renderStats(){
     const createdOrders=orders.filter(o=>o.date===d);
     const createdItemsOfDay=allItems.filter(sv=>sv._order.date===d);
     // Dịch vụ GIAO trong ngày (dùng delivered_date)
-    const deliveredItems=allItems.filter(sv=>itemStatus(sv)==='delivered'&&(sv.delivered_date||sv._order.date).slice(0,10)===d);
+    const deliveredItems=allItems.filter(sv=>itemStatus(sv)==='delivered'&&(sv.delivered_date?utcToLocalDate(sv.delivered_date):sv._order.date)===d);
     // Dịch vụ chưa giao nhưng tạo trong ngày
     const pendingItems=createdItemsOfDay.filter(sv=>itemStatus(sv)!=='delivered');
     if(!createdOrders.length&&!deliveredItems.length) return null;
