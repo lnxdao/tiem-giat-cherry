@@ -611,7 +611,7 @@ function switchTab(tab,btn){
 
 /* ══ LOAD ══ */
 async function loadOrders(){
-  const{data}=await db.from('orders').select('*,order_items(*)').order('date',{ascending:false}).order('created_at',{ascending:false});
+  const{data}=await db.from('orders').select('*,order_items(id,svc_name,qty,price,status,pay_method,received,delivered_date,order_id)').order('date',{ascending:false}).order('created_at',{ascending:false});
   orders=data||[];renderList();updateTopStats();
 }
 async function loadCatalog(){
@@ -667,22 +667,25 @@ function renderDailySummary(){
   </div>`;
 }
 
-function filterByDate(date){
+function filterByDate(date,mode='all'){
   const dayOrds=orders.filter(o=>o.date===date);
   const title=document.getElementById('day-modal-title');
   const body=document.getElementById('day-modal-body');
-  title.textContent='📋 Đơn ngày '+fmtDate(date);
+  const modeLabel={all:'Tất cả',cash:'💵 Tiền mặt',transfer:'📲 Chuyển khoản',pending:'⏳ Chưa thu',not_delivered:'🧺 Chưa giao'};
+  title.textContent=(modeLabel[mode]||'📋')+' — ngày '+fmtDate(date);
 
-  // Phân loại: tìm các item đã giao theo phương thức thanh toán
-  const cashOrds=[], xkOrds=[], pendingOrds=[];
+  // Phân loại items theo mode
+  const cashOrds=[], xkOrds=[], pendingOrds=[], notDelivOrds=[];
   dayOrds.forEach(o=>{
     const items=o.order_items||[];
     const cashItems=items.filter(sv=>itemStatus(sv)==='delivered'&&sv.pay_method==='cash');
     const xkItems=items.filter(sv=>itemStatus(sv)==='delivered'&&sv.pay_method==='transfer');
-    const pendItems=items.filter(sv=>itemStatus(sv)!=='delivered');
+    const pendItems=items.filter(sv=>itemStatus(sv)==='delivered'&&Number(sv.received||0)<Number(sv.price||0));
+    const notDelivItems=items.filter(sv=>itemStatus(sv)!=='delivered');
     if(cashItems.length) cashOrds.push({o,items:cashItems});
     if(xkItems.length) xkOrds.push({o,items:xkItems});
     if(pendItems.length) pendingOrds.push({o,items:pendItems});
+    if(notDelivItems.length) notDelivOrds.push({o,items:notDelivItems});
   });
 
   function renderGroup(list, title, color, icon){
@@ -732,9 +735,11 @@ function filterByDate(date){
     </div>`;
   }
 
-  const content=renderGroup(cashOrds,'Tiền mặt','#16a34a','💵')
-    +renderGroup(xkOrds,'Chuyển khoản','#7c3aed','📲')
-    +renderPending(pendingOrds);
+  let content='';
+  if(mode==='cash'||mode==='all') content+=renderGroup(cashOrds,'Tiền mặt','#16a34a','💵');
+  if(mode==='transfer'||mode==='all') content+=renderGroup(xkOrds,'Chuyển khoản','#7c3aed','📲');
+  if(mode==='pending'||mode==='all') content+=renderPending(pendingOrds);
+  if(mode==='not_delivered'||mode==='all') content+=renderGroup(notDelivOrds,'Chưa giao','#94a3b8','🧺');
 
   body.innerHTML=content||'<div class="empty">Không có đơn nào</div>';
   document.getElementById('day-modal').style.display='flex';
@@ -1375,25 +1380,50 @@ function renderStats(){
         </div>
         <!-- Chi tiết tiền -->
         <div style="padding:4px 0">
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 16px;border-bottom:1px solid #f8f8f8">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 16px;border-bottom:1px solid #f8f8f8;cursor:pointer;transition:background .1s"
+               onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background=''"
+               onclick="filterByDate('${r.d}','cash')">
             <span style="font-size:13px;color:#374151">💵 Tiền mặt</span>
-            <span style="font-size:13px;font-weight:600;color:#16a34a">${fmt(r.dc)}</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:13px;font-weight:600;color:#16a34a">${fmt(r.dc)}</span>
+              <span style="font-size:11px;color:#16a34a">›</span>
+            </div>
           </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 16px;border-bottom:1px solid #f8f8f8">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 16px;border-bottom:1px solid #f8f8f8;cursor:pointer;transition:background .1s"
+               onmouseover="this.style.background='#faf5ff'" onmouseout="this.style.background=''"
+               onclick="filterByDate('${r.d}','transfer')">
             <span style="font-size:13px;color:#374151">📲 Chuyển khoản</span>
-            <span style="font-size:13px;font-weight:600;color:#7c3aed">${fmt(r.dx)}</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:13px;font-weight:600;color:#7c3aed">${fmt(r.dx)}</span>
+              <span style="font-size:11px;color:#7c3aed">›</span>
+            </div>
           </div>
-          ${r.unpaid>0?`<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 16px;border-bottom:1px solid #f8f8f8">
+          ${r.unpaid>0?`<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 16px;border-bottom:1px solid #f8f8f8;cursor:pointer"
+               onmouseover="this.style.background='#fffbeb'" onmouseout="this.style.background=''"
+               onclick="filterByDate('${r.d}','pending')">
             <span style="font-size:13px;color:#374151">⏳ Chưa thu (đã giao)</span>
-            <span style="font-size:13px;font-weight:600;color:#f59e0b">${fmt(r.unpaid)}</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:13px;font-weight:600;color:#f59e0b">${fmt(r.unpaid)}</span>
+              <span style="font-size:11px;color:#f59e0b">›</span>
+            </div>
           </div>`:''}
-          ${r.pendingCnt>0?`<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 16px;border-bottom:1px solid #f8f8f8">
+          ${r.pendingCnt>0?`<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 16px;border-bottom:1px solid #f8f8f8;cursor:pointer"
+               onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''"
+               onclick="filterByDate('${r.d}','not_delivered')">
             <span style="font-size:13px;color:#374151">🧺 Chưa giao (${r.pendingCnt} dịch vụ)</span>
-            <span style="font-size:13px;font-weight:600;color:#94a3b8">${fmt(r.pendingTotal)}</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:13px;font-weight:600;color:#94a3b8">${fmt(r.pendingTotal)}</span>
+              <span style="font-size:11px;color:#94a3b8">›</span>
+            </div>
           </div>`:''}
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#f8fafc">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#f8fafc;cursor:pointer"
+               onmouseover="this.style.background='#f0f2f5'" onmouseout="this.style.background='#f8fafc'"
+               onclick="filterByDate('${r.d}','all')">
             <span style="font-size:13px;font-weight:700;color:#1e293b">Tổng đã thu</span>
-            <span style="font-size:14px;font-weight:700;color:#1e293b">${fmt(r.dc+r.dx)}</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:14px;font-weight:700;color:#1e293b">${fmt(r.dc+r.dx)}</span>
+              <span style="font-size:11px;color:#555">›</span>
+            </div>
           </div>
         </div>
       </div>`).join('')
