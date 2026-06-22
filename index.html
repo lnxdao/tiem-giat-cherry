@@ -445,20 +445,25 @@ function today(offset=0){const d=new Date();d.setDate(d.getDate()+offset);return
 function fmtDate(s){if(!s)return'--';const p=s.split('-');return p[2]+'/'+p[1]+'/'+p[0].slice(2);}
 function fmtDateTime(s){if(!s)return'--';const d=new Date(s);return d.toLocaleDateString('vi-VN')+' '+d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});}
 // Chuyển UTC datetime string → local date string (YYYY-MM-DD) để điền vào input[type=date]
-function utcToLocalDate(s){if(!s)return'';
-  // Nếu đã có offset +07:00 hoặc dạng YYYY-MM-DD thì lấy trực tiếp
-  if(s.includes('+07:00')) return s.slice(0,10);
-  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  const d=new Date(s);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+function utcToLocalDate(s){
+  if(!s)return'';
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; // đã là date string thuần
+  const d=new Date(s); // parse UTC → local tự động
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 // Chuyển UTC datetime string → local time string (HH:MM) để điền vào input[type=time]
-function utcToLocalTime(s){if(!s)return'00:00';
-  // Nếu đã có offset +07:00 thì lấy giờ trực tiếp
-  if(s.includes('+07:00')) return s.slice(11,16);
-  const d=new Date(s);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+function utcToLocalTime(s){
+  if(!s)return'00:00';
+  const d=new Date(s);
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
 }
 // Chuyển local date (YYYY-MM-DD) + local time (HH:MM) → ISO string để lưu vào DB
-function localToISO(date,time){if(!date)return null;return date+'T'+(time||'00:00')+':00+07:00';}
+function localToISO(date,time){
+  if(!date)return null;
+  // Tạo Date object từ local date+time rồi lưu dạng ISO UTC chuẩn
+  const d=new Date(date+'T'+(time||'00:00'));
+  return d.toISOString();
+}
 function orderTotal(o){return(o.order_items||[]).reduce((s,sv)=>s+Number(sv.price||0),0);}
 /* ══ Helpers cho trạng thái/thanh toán THEO TỪNG DỊCH VỤ ══ */
 function itemStatus(sv){return sv.status||'washing';}
