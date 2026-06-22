@@ -460,9 +460,8 @@ function utcToLocalTime(s){
 // Chuyển local date (YYYY-MM-DD) + local time (HH:MM) → ISO string để lưu vào DB
 function localToISO(date,time){
   if(!date)return null;
-  // Tạo Date object từ local date+time rồi lưu dạng ISO UTC chuẩn
-  const d=new Date(date+'T'+(time||'00:00'));
-  return d.toISOString();
+  // Tạo từ local date+time → ISO UTC (browser tự xử lý múi giờ VN)
+  return new Date(date+'T'+(time||'00:00')).toISOString();
 }
 function orderTotal(o){return(o.order_items||[]).reduce((s,sv)=>s+Number(sv.price||0),0);}
 /* ══ Helpers cho trạng thái/thanh toán THEO TỪNG DỊCH VỤ ══ */
@@ -994,9 +993,9 @@ function omItemSetStatus(i,status){
   sv.status=status;
   if(status==='delivered'){
     if(!sv.received||sv.received===0) sv.received=Number(sv.price||0);
+    // Luôn điền giờ hiện tại khi bấm Đã giao (tránh quên nhập giờ)
     if(!sv.delivered_date){
-      const now=new Date();
-      sv.delivered_date=localToISO(utcToLocalDate(now.toISOString()),utcToLocalTime(now.toISOString()));
+      sv.delivered_date=new Date().toISOString();
     }
     if(!sv.pay_method) sv.pay_method='cash';
   }
