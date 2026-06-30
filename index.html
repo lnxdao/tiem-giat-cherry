@@ -891,8 +891,8 @@ function renderOrderModal(o){
 
       <div class="om-svc-grid">
         <div class="om-field">
-          <div class="om-label">${(()=>{const c=catalog.find(c=>c.name===sv.svc_name);return c&&c.type==='tier'?'Khối lượng':(c?'Số lượng':'Khối lượng / Số lượng');})()}</div>
-          <input class="om-input" type="text" value="${sv.qty||''}" placeholder="${(()=>{const c=catalog.find(c=>c.name===sv.svc_name);return c&&c.type==='tier'?'5.9':'1';})()}" onchange="omQtyChange(${i},this.value)" id="om-qty-${i}">
+          <div class="om-label">${(()=>{const c=catalog.find(c=>c.name===sv.svc_name);const u=c?(c.unit||'kg'):'kg';return u==='kg'?'Khối lượng':'Số lượng';})()}</div>
+          <input class="om-input" type="text" value="${sv.qty||''}" placeholder="${(()=>{const c=catalog.find(c=>c.name===sv.svc_name);const u=c?(c.unit||'kg'):'kg';return u==='kg'?'5.9':'1';})()}" onchange="omQtyChange(${i},this.value)" id="om-qty-${i}">
         </div>
         <div class="om-kg-unit">${(()=>{const c=catalog.find(c=>c.name===sv.svc_name);return c?(c.unit||'kg'):'kg';})()}</div>
         <div class="om-field">
