@@ -891,10 +891,10 @@ function renderOrderModal(o){
 
       <div class="om-svc-grid">
         <div class="om-field">
-          <div class="om-label">Khối lượng</div>
-          <input class="om-input" type="text" value="${sv.qty||''}" placeholder="5.9" onchange="omQtyChange(${i},this.value)" id="om-qty-${i}">
+          <div class="om-label">${(()=>{const c=catalog.find(c=>c.name===sv.svc_name);return c&&c.type==='tier'?'Khối lượng':(c?'Số lượng':'Khối lượng / Số lượng');})()}</div>
+          <input class="om-input" type="text" value="${sv.qty||''}" placeholder="${(()=>{const c=catalog.find(c=>c.name===sv.svc_name);return c&&c.type==='tier'?'5.9':'1';})()}" onchange="omQtyChange(${i},this.value)" id="om-qty-${i}">
         </div>
-        <div class="om-kg-unit">kg</div>
+        <div class="om-kg-unit">${(()=>{const c=catalog.find(c=>c.name===sv.svc_name);return c?(c.unit||'kg'):'kg';})()}</div>
         <div class="om-field">
           <div class="om-label">Giá</div>
           <input class="om-input" type="number" value="${sv.price||''}" placeholder="47000" onchange="omPriceChange(${i},this.value)" id="om-price-${i}">
