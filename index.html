@@ -830,7 +830,7 @@ function renderList(){
           ${sv.status==='delivered'&&sv.delivered_date?`<div class="or-detail">🏠 ${fmtDateTime(sv.delivered_date)} ${pm}</div>`:''}
         </div>
         <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;background:${sb.bg};color:${sb.fg};white-space:nowrap;margin-right:8px">${sb.label}</span>
-        <div class="or-price">${sv.price?fmt(sv.price):'—'}</div>
+        <div class="or-price">${sv.price!=null?fmt(sv.price):'—'}</div>
       </div>`;
       }).join('')}
       <div class="of">
@@ -881,7 +881,7 @@ function renderOrderModal(o){
           ${catalog.map(c=>`<option value="${c.name}"${c.name===sv.svc_name?' selected':''}>${c.name}</option>`).join('')}
           ${!catalog.find(c=>c.name===sv.svc_name)&&sv.svc_name?`<option value="${sv.svc_name}" selected>${sv.svc_name}</option>`:''}
         </select>
-        <span class="om-svc-price-badge">${sv.price?fmt(sv.price):'—'}</span>
+        <span class="om-svc-price-badge">${sv.price!=null&&sv.price!==''?fmt(sv.price):'—'}</span>
       </div>
 
       <div style="margin-bottom:10px">
@@ -897,7 +897,7 @@ function renderOrderModal(o){
         <div class="om-kg-unit">${(()=>{const c=catalog.find(c=>c.name===sv.svc_name);return c?(c.unit||'kg'):'kg';})()}</div>
         <div class="om-field">
           <div class="om-label">Giá</div>
-          <input class="om-input" type="number" value="${sv.price||''}" placeholder="47000" onchange="omPriceChange(${i},this.value)" id="om-price-${i}">
+          <input class="om-input" type="number" value="${sv.price!=null?sv.price:''}" placeholder="0" onchange="omPriceChange(${i},this.value)" id="om-price-${i}">
         </div>
       </div>
 
@@ -1059,7 +1059,8 @@ function omQtyChange(i,qty){
 }
 function omPriceChange(i,val){
   const o=orders.find(x=>x.id===editOrderId);if(!o)return;
-  o.order_items[i].price=Number(val);
+  // Cho phép giá = 0 (khuyến mãi 100%)
+  o.order_items[i].price=val===''?0:Number(val);
 }
 function omAddSvc(){
   const o=orders.find(x=>x.id===editOrderId);if(!o)return;
